@@ -1,0 +1,15 @@
+#!/bin/sh
+# For disposable Debian / Ubuntu containers, run in the checkout as root.
+set -eu
+export DEBIAN_FRONTEND=noninteractive
+apt-get -qq update
+apt-get -qy --no-install-recommends install ./dist/*.deb flake8 desktop-file-utils
+dpkg-deb --info ./dist/*.deb >/dev/null
+desktop-file-validate /usr/share/applications/dylathleen*.desktop
+flake8 --select=E9,F821,F822,F823 dylathleen tests packaging
+python3 -m unittest discover
+dylathleen --version
+dylathleen-cli --help
+useradd -m tester
+su -s /bin/sh tester -c "QT_QPA_PLATFORM=offscreen PYTHONPATH=/usr/lib/dylathleen python3 '$PWD/packaging/smoke.py'"
+su -s /bin/sh tester -c "QT_QPA_PLATFORM=offscreen PYTHONPATH=/usr/lib/dylathleen python3 '$PWD/packaging/check-preview.py'"

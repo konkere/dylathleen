@@ -3,27 +3,19 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bauh"
-description = "Graphical interface to manage Linux applications (AppImage, Arch / AUR, Flatpak, Snap and Web)"
+name = "dylathleen"
+description = "Graphical interface to manage Linux applications (AppImage, Flatpak, Snap and Web Apps)"
 license = {file = "LICENSE"}
-requires-python = ">=3.6"
+requires-python = ">=3.10"
 dynamic = ["version"]
 readme = "README.md"
 authors = [{name = "Vinicius Moreira", email = "vinicius_fmoreira@hotmail.com"}]
-classifiers = [
-        'Topic :: Utilities',
-        'Programming Language :: Python',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9',
-        'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: 3.11'
-]
+maintainers = [{name = "Konkere", email = "amorph@konkere.ru"}]
 
 dependencies = [
     "pyqt5 >= 5.12",
     "requests >= 2.18",
+    "packaging",
     "colorama >= 0.3.8",
     "pyyaml >= 3.13",
     "python-dateutil >= 2.7"
@@ -36,18 +28,19 @@ web = [
 ]
 
 [project.scripts]
-bauh = "bauh.app:main"
-bauh-tray = "bauh.app:tray"
-bauh-cli = "bauh.cli.app:main"
+dylathleen = "dylathleen.app:main"
+dylathleen-tray = "dylathleen.app:tray"
+dylathleen-cli = "dylathleen.cli.app:main"
 
 [project.urls]
-Repository = "https://github.com/vinifmor/bauh"
+Repository = "https://github.com/konkere/dylathleen"
 
 [tool.setuptools]
 license-files = ["LICENSE"]
 
 [tool.setuptools.dynamic]
-version = {attr = "bauh.__version__"}
+version = {attr = "dylathleen.__version__"}
 
 [tool.setuptools.packages.find]
-exclude = ["tests.*", "tests"]
+include = ["dylathleen*"]
+exclude = ["dylathleen.gems.arch*", "dylathleen.gems.debian*"]

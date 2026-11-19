@@ -1,12 +1,12 @@
 from unittest import TestCase
 from unittest.mock import patch, Mock, MagicMock
 
-from bauh import __app_name__
-from bauh.api.abstract.controller import UpgradeRequirement
-from bauh.gems.arch.dependencies import DependenciesAnalyser
-from bauh.gems.arch.model import ArchPackage
-from bauh.gems.arch.updates import UpdatesSummarizer
-from bauh.view.util.translation import I18n
+from dylathleen import __app_name__
+from dylathleen.api.abstract.controller import UpgradeRequirement
+from dylathleen.gems.arch.dependencies import DependenciesAnalyser
+from dylathleen.gems.arch.model import ArchPackage
+from dylathleen.gems.arch.updates import UpdatesSummarizer
+from dylathleen.view.util.translation import I18n
 
 
 class UpdatesSummarizerGetUpgradeRequirementsTest(TestCase):

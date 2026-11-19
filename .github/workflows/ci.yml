@@ -1,0 +1,41 @@
+name: Build and test
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          ./packaging/build-deb
+          sha256sum dist/*.deb > /tmp/expected
+          ./packaging/build-deb
+          sha256sum -c /tmp/expected
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dylathleen-deb
+          path: dist/*.deb
+  test:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:22.04', 'ubuntu:24.04', 'ubuntu:26.04', 'debian:12', 'debian:13']
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dylathleen-deb
+          path: dist
+      - run: ./packaging/check-distribution
+  flatpak:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y flatpak python3-packaging
+          PYTHONPATH=. /usr/bin/python3 packaging/check-flatpak.py

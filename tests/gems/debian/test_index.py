@@ -1,11 +1,12 @@
+from tempfile import TemporaryDirectory
 import json
 import os.path
 from unittest import TestCase
 from unittest.mock import Mock, patch, call
 
-from bauh import __app_name__
-from bauh.gems.debian.index import ApplicationsMapper, ApplicationIndexer
-from bauh.gems.debian.model import DebianApplication
+from dylathleen import __app_name__
+from dylathleen.gems.debian.index import ApplicationsMapper, ApplicationIndexer
+from dylathleen.gems.debian.model import DebianApplication
 from tests.gems.debian import DEBIAN_TESTS_DIR
 
 
@@ -113,20 +114,11 @@ class ApplicationsMapperTest(TestCase):
 class ApplicationIndexerTest(TestCase):
 
     def setUp(self):
-        self.update_idx_file_path = f'{DEBIAN_TESTS_DIR}/resources/apps_idx.json'
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.update_idx_file_path = f'{directory.name}/apps_idx.json'
         self.update_idx_ts_file_path = f'{self.update_idx_file_path}.ts'
-        self.app_indexer = ApplicationIndexer(logger=Mock(),
-                                              index_file_path=self.update_idx_file_path)
-
-        if os.path.exists(self.update_idx_file_path):
-            os.remove(self.update_idx_file_path)
-
-    def tearDown(self) -> None:
-        if os.path.exists(self.update_idx_file_path):
-            os.remove(self.update_idx_file_path)
-
-        if os.path.exists(self.update_idx_ts_file_path):
-            os.remove(self.update_idx_ts_file_path)
+        self.app_indexer = ApplicationIndexer(logger=Mock(), index_file_path=self.update_idx_file_path)
 
     def test_update_index(self):
         apps = {

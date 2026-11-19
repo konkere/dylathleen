@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from bauh.api.abstract.model import PackageUpdate
+from dylathleen.api.abstract.model import PackageUpdate
 
 
 class PackageUpdateTest(TestCase):

@@ -1,0 +1,39 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+umask 022
+stage=$(mktemp -d)
+trap 'rm -rf "$stage"' EXIT
+export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-1795132800}
+install -Dm644 packaging/control "$stage/DEBIAN/control"
+lib="$stage/usr/lib/dylathleen"
+mkdir -p "$lib" "$stage/usr/bin" dist
+tar --exclude='__pycache__' --exclude='*.pyc' --exclude='dylathleen/gems/arch' --exclude='dylathleen/gems/debian' -cf "$stage/code.tar" dylathleen
+tar -xf "$stage/code.tar" -C "$lib"
+rm "$stage/code.tar"
+for command in dylathleen dylathleen-tray dylathleen-cli; do
+    case "$command" in
+        dylathleen) entry='from dylathleen.app import main' ;;
+        dylathleen-tray) entry='from dylathleen.app import tray as main' ;;
+        dylathleen-cli) entry='from dylathleen.cli.app import main' ;;
+    esac
+    cat > "$stage/usr/bin/$command" <<LAUNCH
+#!/usr/bin/python3 -I
+import sys
+sys.path.insert(0, '/usr/lib/dylathleen')
+$entry
+main()
+LAUNCH
+    chmod 755 "$stage/usr/bin/$command"
+done
+for file in dylathleen/desktop/*.desktop; do
+    install -Dm644 "$file" "$stage/usr/share/applications/${file##*/}"
+done
+install -Dm644 dylathleen/view/resources/img/logo.svg "$stage/usr/share/icons/hicolor/scalable/apps/dylathleen.svg"
+doc="$stage/usr/share/doc/dylathleen"
+install -Dm644 LICENSE "$doc/copyright"
+install -m644 README.md README.ru.md CHANGELOG.md "$doc/"
+find "$stage" -type d -exec chmod 755 {} +
+find "$lib" -type f -exec chmod 644 {} +
+find "$stage" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
+dpkg-deb --root-owner-group -Zxz --build "$stage" dist/

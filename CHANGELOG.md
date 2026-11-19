@@ -1,3 +1,11 @@
+# Dylath-Leen 0.1.0 — 2026-11-20 (local development)
+
+* Native DEB and isolated application identity. Four supported backends.
+* Flatpak deployment and remote version preview, including rebuilds and missing labels.
+* First distribution smoke matrix.
+
+## Historical bauh changes
+
 # Changelog
 All notable changes to this project will be documented in this file.
 
