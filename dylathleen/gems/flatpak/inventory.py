@@ -78,5 +78,11 @@ def inventory(scope, online):
 
 def deployments(online):
     with ThreadPoolExecutor(max_workers=2) as pool:
-        scopes = [pool.submit(inventory, scope, online) for scope in ('system', 'user')]
-        return [row for scope in scopes for row in scope.result()]
+        tasks = {scope: pool.submit(inventory, scope, online) for scope in ('system', 'user')}
+        rows = []
+        for scope, task in tasks.items():
+            try:
+                rows.extend(task.result())
+            except (OSError, subprocess.SubprocessError) as exc:
+                logging.getLogger(__name__).warning('Cannot list Flatpak installation (%s): %s', scope, exc)
+        return rows

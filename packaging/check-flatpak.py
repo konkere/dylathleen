@@ -5,8 +5,9 @@ from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
 
-from dylathleen.gems.flatpak.inventory import inventory
-from dylathleen.gems.flatpak.model import FlatpakApplication
+from collections import defaultdict
+import logging
+from unittest.mock import Mock
 
 
 def flatpak(*args):
@@ -37,18 +38,36 @@ with TemporaryDirectory() as temp:
                       XDG_CONFIG_HOME=temp + '/config', FLATPAK_USER_DIR=temp + '/installation',
                       LC_ALL='C.UTF-8', GSETTINGS_BACKEND='memory')
     arch = subprocess.check_output(['flatpak', '--default-arch'], text=True).strip()
+    runtime = root / 'platform'
+    (runtime / 'usr').mkdir(parents=True)
+    (runtime / 'metadata').write_text(f'[Runtime]\nname=org.example.Platform\n'
+                                      f'runtime=org.example.Platform/{arch}/stable\n'
+                                      f'sdk=org.example.Sdk/{arch}/stable\n')
+    flatpak('build-export', '--runtime', '--files=usr', root / 'repo', runtime, 'stable')
     publish(root, 'Gimp', '3.2.4', 1)
     publish(root, 'Plexamp', '4.13.2', 1)
     flatpak('remote-add', '--user', '--no-gpg-verify', 'fixture', (root / 'repo').as_uri())
-    flatpak('install', '--user', '-y', '--no-deps', 'fixture', 'org.example.Gimp', 'org.example.Plexamp')
+    flatpak('install', '--user', '-y', 'fixture', 'org.example.Gimp', 'org.example.Plexamp')
     publish(root, 'Gimp', '3.2.8', 2)
     publish(root, 'Plexamp', '4.13.2', 2)
-    models = {row['id']: FlatpakApplication(**row) for row in inventory('user', True)}
+    # Import after isolating paths: never inspect the host's real installations.
+    os.environ['FLATPAK_SYSTEM_DIR'] = temp + '/system'
+    from dylathleen.gems.flatpak.controller import FlatpakManager
+    context = Mock()
+    context.logger = logging.getLogger(__name__)
+    context.i18n = defaultdict(str)
+    context.cache_factory.new.return_value.get.return_value = None
+    manager = FlatpakManager(context)
+    models = {p.id: p for p in manager.read_installed(None, internet_available=True).installed}
     labels = {'flatpak.update.build': 'build update', 'flatpak.update.unknown': 'unknown'}
     gimp = models['org.example.Gimp']
     plex = models['org.example.Plexamp']
     assert gimp.update and gimp.update_version_label(labels) == '3.2.4 → 3.2.8', vars(gimp)
     assert plex.update and 'build update' in plex.update_version_label(labels), vars(plex)
     print(gimp.update_version_label(labels), plex.update_version_label(labels), flush=True)
-    flatpak('update', '--user', '-y', '--no-deps')
-    assert not any(row.get('update') for row in inventory('user', True))
+    watcher = Mock()
+    plan = manager.get_upgrade_requirements([gimp, plex], None, watcher)
+    assert manager.upgrade(plan, None, watcher)
+    refreshed = manager.read_installed(None, internet_available=True).installed
+    assert not any(pkg.update for pkg in refreshed)
+    assert next(pkg for pkg in refreshed if pkg.id == gimp.id).version == '3.2.8'

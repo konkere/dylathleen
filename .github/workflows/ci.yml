@@ -37,5 +37,6 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           sudo apt-get update -qq
-          sudo apt-get install -y flatpak python3-packaging
+          ./packaging/build-deb
+          sudo apt-get install -y ./dist/*.deb
           PYTHONPATH=. /usr/bin/python3 packaging/check-flatpak.py
