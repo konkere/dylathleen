@@ -312,15 +312,6 @@ AboutDialog QLabel {
     qproperty-alignment: AlignCenter;
 }
 
-AboutDialog QLabel#logo {
-    qproperty-pixmap: url("@images/logo.svg");
-    qproperty-scaledContents: true;
-    min-height: 55px;
-    max-height: 55px;
-    min-width: 64px;
-    max-width: 64px;
-}
-
 AboutDialog QLabel#app_name {
     font-size: 14px;
     font-weight: bold;

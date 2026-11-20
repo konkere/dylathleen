@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Dylath-Leen — Rounded-Square Twilight Citadel (Small-Size Symbolic Variant)</title>
+
+  <g id="icon-twilight-symbolic">
+    <!-- Pre-clipped flat twilight sky matching outer rounded corners (r=96) -->
+    <path id="sym-sky" d="
+      M 32,354
+      L 32,128
+      A 96,96 0 0 1 128,32
+      L 384,32
+      A 96,96 0 0 1 480,128
+      L 480,260
+      L 410,278
+      L 410,354 Z
+    " fill="#6C889E"/>
+
+    <!-- Pre-clipped flat teal harbor bay with native bottom-left arc (r=96) -->
+    <path id="sym-harbor" d="
+      M 32,352
+      L 422,352
+      L 422,420
+      L 400,458
+      L 330,478
+      L 200,480
+      L 128,480
+      A 96,96 0 0 1 32,384 Z
+    " fill="#158994"/>
+
+    <!-- Bold light-edge highlights for silhouette clarity at 16x16–32x32 -->
+    <polygon id="sym-facet-left" points="122,352 158,156 212,126 212,152 174,174 146,352" fill="#89A4B8"/>
+    <polygon id="sym-facet-center" points="212,320 250,96 314,64 314,90 268,114 234,320" fill="#92ADC0"/>
+
+    <!-- Simplified 3-tower tilted basalt citadel with native bottom-right arc (r=96) -->
+    <path id="sym-citadel-mass" d="
+      M 76,356
+      L 138,322
+      L 170,168
+      L 212,146
+      L 206,288
+      L 226,282
+      L 264,108
+      L 314,82
+      L 308,216
+      L 328,220
+      L 334,146
+      L 396,158
+      L 414,274
+      L 480,256
+      L 480,384
+      A 96,96 0 0 1 384,480
+      L 200,480
+      C 332,472 414,446 414,408
+      C 414,368 292,356 76,356 Z
+    " fill="#1A212C"/>
+
+    <!-- Enlarged warm amber beacon engineered to stay crisp at 16x16 -->
+    <polygon id="sym-amber-beacon" points="350,182 378,186 382,244 346,240" fill="#F6C970"/>
+  </g>
+</svg>

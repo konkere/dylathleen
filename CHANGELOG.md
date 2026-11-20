@@ -1,3 +1,9 @@
+# Dylath-Leen 0.1.1 — 2026-11-20
+
+* Add the Twilight application icon and a simplified variant for small sizes. Use them in the desktop menu, window and tray while preserving the existing update indicator.
+* Keep the logo square in the About dialog, including on high-DPI displays.
+* Run package CI on branch pushes, pull requests and manual requests. Publishing a release or pushing a release tag does not start another build.
+
 # Dylath-Leen 0.1.0 — 2026-11-20 (local development)
 
 * Native DEB and isolated application identity. Four supported backends.

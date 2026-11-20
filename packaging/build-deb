@@ -1,13 +1,14 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
+output_dir=${1:-dist}
 umask 022
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-1795132800}
 install -Dm644 packaging/control "$stage/DEBIAN/control"
 lib="$stage/usr/lib/dylathleen"
-mkdir -p "$lib" "$stage/usr/bin" dist
+mkdir -p "$lib" "$stage/usr/bin" "$output_dir"
 tar --exclude='__pycache__' --exclude='*.pyc' --exclude='dylathleen/gems/arch' --exclude='dylathleen/gems/debian' -cf "$stage/code.tar" dylathleen
 tar -xf "$stage/code.tar" -C "$lib"
 rm "$stage/code.tar"
@@ -29,11 +30,16 @@ done
 for file in dylathleen/desktop/*.desktop; do
     install -Dm644 "$file" "$stage/usr/share/applications/${file##*/}"
 done
-install -Dm644 dylathleen/view/resources/img/logo.svg "$stage/usr/share/icons/hicolor/scalable/apps/dylathleen.svg"
+icons="$stage/usr/share/icons/hicolor"
+install -Dm644 dylathleen/view/resources/img/logo.svg "$icons/scalable/apps/dylathleen.svg"
+for size in 16 24 32 48 128; do
+    dimensions="${size}x${size}"
+    install -Dm644 "packaging/icons/dylathleen-$dimensions.png" "$icons/$dimensions/apps/dylathleen.png"
+done
 doc="$stage/usr/share/doc/dylathleen"
 install -Dm644 LICENSE "$doc/copyright"
 install -m644 README.md README.ru.md CHANGELOG.md "$doc/"
 find "$stage" -type d -exec chmod 755 {} +
 find "$lib" -type f -exec chmod 644 {} +
 find "$stage" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
-dpkg-deb --root-owner-group -Zxz --build "$stage" dist/
+dpkg-deb --root-owner-group -Zxz --build "$stage" "$output_dir/"

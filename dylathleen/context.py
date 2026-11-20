@@ -6,7 +6,7 @@ from typing import Tuple
 from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import QApplication
 
-from dylathleen import DISPLAY_NAME, __version__
+from dylathleen import DISPLAY_NAME, __app_name__, __version__
 from dylathleen.stylesheet import process_theme, read_default_themes, read_user_themes, read_theme_metada
 from dylathleen.view.util import util, translation
 from dylathleen.view.util.translation import I18n
@@ -19,6 +19,7 @@ def new_qt_application(app_config: dict, logger: Logger, quit_on_last_closed: bo
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(quit_on_last_closed)  # otherwise windows opened through the tray icon kill the application when closed
     app.setApplicationName(name if name else DISPLAY_NAME)
+    app.setDesktopFileName(__app_name__)
     app.setApplicationVersion(__version__)
     app.setWindowIcon(util.get_default_icon()[1])
 

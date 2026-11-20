@@ -27,6 +27,8 @@ class AboutDialog(QDialog):
 
         label_logo = QLabel()
         label_logo.setObjectName('logo')
+        label_logo.setFixedSize(64, 64)
+        label_logo.setPixmap(QIcon(resource.get_path('img/logo.svg')).pixmap(64, 64))
 
         logo_container.layout().addWidget(label_logo)
         layout.addWidget(logo_container)
