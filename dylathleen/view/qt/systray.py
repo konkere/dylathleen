@@ -21,7 +21,6 @@ from dylathleen.context import generate_i18n
 from dylathleen.view.core.tray_client import TRAY_CHECK_FILE
 from dylathleen.view.core.update import check_for_update
 from dylathleen.view.qt.about import AboutDialog
-from dylathleen.view.qt.qt_utils import load_resource_icon
 from dylathleen.view.util import util, resource
 from dylathleen.view.util.translation import I18n
 
@@ -132,7 +131,7 @@ class TrayIcon(QSystemTrayIcon):
             self.icon_updates = QIcon.fromTheme('dylathleen_tray_updates')
 
         if self.icon_updates.isNull():
-            self.icon_updates = load_resource_icon('img/logo_update.svg', 24)
+            self.icon_updates = QIcon(resource.get_path('img/logo_update.svg'))
 
         self.setIcon(self.icon_default)
 

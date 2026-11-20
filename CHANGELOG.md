@@ -1,3 +1,7 @@
+# Dylath-Leen 0.1.2 — 2026-11-21
+
+* Use Twilight Small with an amber dot as the default tray icon when updates are available. Render the SVG at the size the tray requests.
+
 # Dylath-Leen 0.1.1 — 2026-11-20
 
 * Add the Twilight application icon and a simplified variant for small sizes. Use them in the desktop menu, window and tray while preserving the existing update indicator.
