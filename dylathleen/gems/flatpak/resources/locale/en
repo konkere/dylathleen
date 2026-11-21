@@ -59,3 +59,14 @@ flatpak.remotes.system_flathub.error=It was not possible to add Flathub as a sys
 gem.flatpak.info=Applications available on Flathub and other repositories configured on your system
 flatpak.update.build=build update
 flatpak.update.unknown=target version unavailable
+
+flatpak.cleanup.title=Clean up unused Flatpak runtimes…
+flatpak.cleanup.status=Cleaning up unused Flatpak runtimes
+flatpak.cleanup.choose=Select the runtimes and extensions to remove.
+flatpak.cleanup.changed=The removal plan changed. Review the list and confirm your selection again.
+flatpak.cleanup.user=Current user
+flatpak.cleanup.system=All users
+flatpak.cleanup.remove=Remove selected
+flatpak.cleanup.empty=No unused Flatpak runtimes found.
+flatpak.cleanup.done={}: removed {} components.
+flatpak.cleanup.conflict=Cleanup stopped for this installation. The Flatpak plan differs from your selection for these components:

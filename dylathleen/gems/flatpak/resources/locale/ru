@@ -59,3 +59,14 @@ flatpak.remotes.system_flathub.error=Не удалось добавить Flathu
 gem.flatpak.info=Приложения, доступные на Flathub и других репозиториях, настроенных в вашей системе
 flatpak.update.build=обновление сборки
 flatpak.update.unknown=целевая версия неизвестна
+
+flatpak.cleanup.title=Очистить неиспользуемые среды Flatpak…
+flatpak.cleanup.status=Очистка неиспользуемых сред Flatpak
+flatpak.cleanup.choose=Отметьте среды и расширения, которые хотите удалить.
+flatpak.cleanup.changed=Состав удаления изменился. Проверьте список и подтвердите выбор заново.
+flatpak.cleanup.user=Для текущего пользователя
+flatpak.cleanup.system=Для всех пользователей
+flatpak.cleanup.remove=Удалить выбранные
+flatpak.cleanup.empty=Неиспользуемых сред Flatpak нет.
+flatpak.cleanup.done={}: удалено компонентов — {}.
+flatpak.cleanup.conflict=Очистка этой области остановлена. План Flatpak расходится с выбранным списком по следующим компонентам:

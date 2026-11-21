@@ -682,6 +682,15 @@ class FlatpakManager(SoftwareManager, SettingsController):
 
     def gen_custom_actions(self) -> Generator[CustomSoftwareAction, None, None]:
         yield self.action_full_update
+        yield CustomSoftwareAction(i18n_label_key='flatpak.cleanup.title',
+                                   i18n_status_key='flatpak.cleanup.status',
+                                   manager=self, icon_path=get_icon_path(),
+                                   manager_method='clean_unused', requires_root=False,
+                                   requires_confirmation=False)
+
+    def clean_unused(self, root_password: Optional[str], watcher: ProcessWatcher) -> bool:
+        from dylathleen.gems.flatpak.cleanup import clean_unused
+        return clean_unused(self.i18n, watcher)
 
     def full_update(self, root_password: Optional[str], watcher: ProcessWatcher) -> bool:
         handler = ProcessHandler(watcher)

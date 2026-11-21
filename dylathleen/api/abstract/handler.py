@@ -22,7 +22,7 @@ class ProcessWatcher:
                              window_cancel: bool = False, confirmation_button: bool = True,
                              min_width: Optional[int] = None,
                              min_height: Optional[int] = None,
-                             max_width: Optional[int] = None) -> bool:
+                             max_width: Optional[int] = None, count_selected: bool = False) -> bool:
         """
         request a user confirmation. In the current GUI implementation, it shows a popup to the user.
         :param title: popup title

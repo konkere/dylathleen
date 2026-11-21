@@ -591,7 +591,8 @@ class ManageWindow(QWidget):
                                   confirmation_button=msg.get('confirmation_button', True),
                                   min_width=msg.get('min_width'),
                                   min_height=msg.get('min_height'),
-                                  max_width=msg.get('max_width'))
+                                  max_width=msg.get('max_width'),
+                                  count_selected=msg.get('count_selected', False))
         diag.ask()
         res = diag.confirmed
         self.thread_animate_progress.animate()

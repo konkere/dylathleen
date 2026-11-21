@@ -3,7 +3,7 @@ from typing import List, Optional
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QCursor
 from PyQt5.QtWidgets import QMessageBox, QLabel, QWidget, QHBoxLayout, QDialog, QVBoxLayout, QSizePolicy, QPushButton, \
-    QScrollArea, QFrame
+    QScrollArea, QFrame, QCheckBox
 
 from dylathleen.api.abstract.view import MessageType
 from dylathleen.view.qt.components import new_spacer
@@ -35,7 +35,7 @@ class ConfirmationDialog(QDialog):
                  window_cancel: bool = False, confirmation_label: Optional[str] = None, deny_label: Optional[str] = None,
                  confirmation_icon: bool = True, min_width: Optional[int] = None,
                  min_height: Optional[int] = None, max_width: Optional[int] = None,
-                 confirmation_icon_type: MessageType = MessageType.INFO):
+                 confirmation_icon_type: MessageType = MessageType.INFO, count_selected: bool = False):
         super(ConfirmationDialog, self).__init__()
 
         if not window_cancel:
@@ -107,6 +107,19 @@ class ConfirmationDialog(QDialog):
             bt_confirm.setCursor(QCursor(Qt.PointingHandCursor))
             bt_confirm.setDefault(True)
             bt_confirm.setAutoDefault(True)
+            if count_selected:
+                boxes = container_body.findChildren(QCheckBox)
+                label = bt_confirm.text()
+
+                def update_count():
+                    count = sum(box.isChecked() for box in boxes)
+                    bt_confirm.setText(f'{label} ({count})')
+                    bt_confirm.setEnabled(count > 0)
+
+                for box in boxes:
+                    box.toggled.connect(update_count)
+                update_count()
+
             bt_confirm.clicked.connect(self.confirm)
             container_bottom.layout().addWidget(bt_confirm)
 
