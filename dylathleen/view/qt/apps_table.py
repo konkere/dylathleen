@@ -574,8 +574,11 @@ class PackagesTable(QTableWidget):
 
         if getattr(pkg.model, 'runtime', False) and pkg.model.installed and pkg.model.get_type() == 'flatpak':
             model = pkg.model
-            toolbar = QCustomToolbar()
-            toolbar.add_widget(item)
+            toolbar = QCustomToolbar(spacing=8, alignment=Qt.AlignVCenter)
+            item.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            item.setMinimumWidth(0)
+            item.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            toolbar.layout().addWidget(item, 1)
             if model.runtime_apps is None:
                 toolbar.add_widget(QLabel(self.i18n['flatpak.runtime.unknown']))
             else:
