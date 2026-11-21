@@ -9,7 +9,6 @@ class PackageFilters(NamedTuple):
     It represents the manage window selected filters
     """
 
-    display_limit: int
     category: str
     name: Optional[str]
     only_apps: bool
@@ -74,10 +73,9 @@ def update_info(pkgv: PackageView, pkgs_info: Dict[str, Any]):
         pkgs_info['not_installed'] += 1
 
 
-def apply_filters(pkg: PackageView, filters: PackageFilters, info: dict, limit: bool = True):
-    if not limit or not filters.display_limit or len(info['pkgs_displayed']) < filters.display_limit:
-        if not is_package_hidden(pkg, filters):
-            info['pkgs_displayed'].append(pkg)
+def apply_filters(pkg: PackageView, filters: PackageFilters, info: dict):
+    if not is_package_hidden(pkg, filters):
+        info['pkgs_displayed'].append(pkg)
 
 
 def sum_updates_displayed(info: dict) -> int:
@@ -109,7 +107,7 @@ def is_package_hidden(pkg: PackageView, filters: PackageFilters) -> bool:
         hidden = not pkg.model.categories or not next((c for c in pkg.model.categories if c.lower() == filters.category), None)
 
     if not hidden and filters.name:
-        hidden = not filters.name.startswith(pkg.model.name.lower())
+        hidden = filters.name.lower() not in pkg.name.lower()
 
     return hidden
 

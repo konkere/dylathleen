@@ -10,7 +10,7 @@ from PyQt5.QtCore import QEvent, Qt, pyqtSignal, QRect
 from PyQt5.QtGui import QIcon, QWindowStateChangeEvent, QCursor, QCloseEvent, QShowEvent
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QCheckBox, QHeaderView, QToolBar, \
     QLabel, QPlainTextEdit, QProgressBar, QPushButton, QComboBox, QApplication, QListView, QSizePolicy, \
-    QMenu, QHBoxLayout
+    QMenu, QHBoxLayout, QToolButton
 
 from dylathleen.api import user
 from dylathleen.api.abstract.cache import MemoryCache
@@ -115,7 +115,9 @@ class ManageWindow(QWidget):
         self.pkgs_available = []  # all packages loaded in memory
         self.pkgs_installed = []  # cached installed packages
         self.pkg_idx: Optional[Dict[str, Any]] = None  # all packages available indexed by the available filters
-        self.display_limit = config['ui']['table']['max_displayed']
+        self.page_index = 0
+        self.matched_packages = []
+        self.display_limit = config['ui']['table']['max_displayed'] or 0
         self.icon_cache = icon_cache
         self.config = config
         self.context = context
@@ -317,12 +319,28 @@ class ManageWindow(QWidget):
 
         self.toolbar_console.layout().addWidget(new_spacer())
 
+        self.pager = QWidget()
+        pager_layout = QHBoxLayout(self.pager)
+        pager_layout.setContentsMargins(0, 0, 0, 0)
+        self.toolbar_console.layout().addWidget(self.pager)
+        self.previous_page = QToolButton()
+        self.previous_page.setArrowType(Qt.LeftArrow)
+        self.previous_page.setToolTip(self.i18n['pagination.previous'])
+        self.previous_page.setAccessibleName(self.previous_page.toolTip())
+        self.previous_page.clicked.connect(lambda: self._change_page(-1))
+        pager_layout.addWidget(self.previous_page)
         self.label_displayed = QLabel()
         self.label_displayed.setObjectName('apps_displayed')
         self.label_displayed.setCursor(QCursor(Qt.WhatsThisCursor))
         self.label_displayed.setToolTip(self.i18n['manage_window.label.apps_displayed.tip'])
-        self.toolbar_console.layout().addWidget(self.label_displayed)
-        self.label_displayed.hide()
+        pager_layout.addWidget(self.label_displayed)
+        self.next_page = QToolButton()
+        self.next_page.setArrowType(Qt.RightArrow)
+        self.next_page.setToolTip(self.i18n['pagination.next'])
+        self.next_page.setAccessibleName(self.next_page.toolTip())
+        self.next_page.clicked.connect(lambda: self._change_page(1))
+        pager_layout.addWidget(self.next_page)
+        self.pager.hide()
 
         self.layout.addWidget(self.toolbar_console)
 
@@ -513,13 +531,16 @@ class ManageWindow(QWidget):
             self.label_status.unsetCursor()
 
     def _set_table_enabled(self, enabled: bool):
+        self.pager.setEnabled(enabled)
         self.table_apps.setEnabled(enabled)
         if enabled:
             self.table_container.unsetCursor()
         else:
             self.table_container.setCursor(QCursor(Qt.WaitCursor))
 
-    def begin_apply_filters(self):
+    def begin_apply_filters(self, keep_page=False):
+        if not keep_page:
+            self.page_index = 0
         self.stop_notifying_package_states()
 
         self._begin_action(action_label=self.i18n['manage_window.status.filtering'],
@@ -697,9 +718,9 @@ class ManageWindow(QWidget):
         self._reload_categories()
         self._reorganize()
 
-    def _update_package_data(self, idx: int):
-        if self.table_apps.isEnabled() and self.pkgs is not None and 0 <= idx < len(self.pkgs):
-            pkg = self.pkgs[idx]
+    def _update_package_data(self, pkg: PackageView):
+        idx = pkg.table_index
+        if self.table_apps.isEnabled() and 0 <= idx < len(self.pkgs) and self.pkgs[idx] is pkg:
             pkg.status = PackageViewStatus.READY
             screen_width = get_current_screen_geometry(self).width()
             self.table_apps.update_package(pkg, screen_width=screen_width)
@@ -880,7 +901,7 @@ class ManageWindow(QWidget):
             self._show_console_checkbox_if_output()
             self._update_installed_filter()
             self._update_index()
-            self.begin_apply_filters()
+            self.begin_apply_filters(keep_page=True)
             self.table_apps.change_headers_policy(policy=QHeaderView.Stretch, maximized=self._maximized)
             self.table_apps.change_headers_policy(policy=QHeaderView.ResizeToContents, maximized=self._maximized)
             self._resize(accept_lower_width=True)
@@ -933,36 +954,52 @@ class ManageWindow(QWidget):
             self._resize(accept_lower_width=len(self.pkgs) > 0)
 
     def _update_table(self, pkgs_info: dict, signal: bool = False):
-        self.pkgs = pkgs_info["pkgs_displayed"]
+        self.matched_packages = pkgs_info["pkgs_displayed"]
 
         if pkgs_info["not_installed"] == 0:
             update_check = sum_updates_displayed(pkgs_info) > 0
         else:
             update_check = False
 
-        self.table_apps.update_packages(self.pkgs, update_check_enabled=update_check)
+        self._page_update_check = update_check
+        self._render_page()
+        if signal:
+            self.signal_table_update.emit()
 
+    def _change_page(self, step: int):
+        self.stop_notifying_package_states()
+        self.page_index += step
+        self._render_page()
+        self.thread_notify_pkgs_ready.pkgs = self.pkgs
+        self.thread_notify_pkgs_ready.work = True
+        self.thread_notify_pkgs_ready.start()
+
+    def _render_page(self):
+        total = len(self.matched_packages)
+        size = self.display_limit if self.display_limit > 0 else max(total, 1)
+        last_page = max(0, (total - 1) // size)
+        self.page_index = max(0, min(self.page_index, last_page))
+        start = self.page_index * size
+        self.pkgs = self.matched_packages[start:start + size]
+        self.table_apps.stop_file_downloader()
+        self.table_apps.update_packages(self.pkgs, update_check_enabled=self._page_update_check)
+        self.pager.show()
+        self.previous_page.setVisible(last_page > 0)
+        self.next_page.setVisible(last_page > 0)
+        self.previous_page.setEnabled(self.page_index > 0)
+        self.next_page.setEnabled(self.page_index < last_page)
+        label = self.i18n['pagination.range'].format(start + 1, start + len(self.pkgs), total) if total else '0'
+        self.label_displayed.setText(label)
         if not self._maximized:
-            self.label_displayed.show()
             self.table_apps.change_headers_policy(QHeaderView.Stretch)
             self.table_apps.change_headers_policy()
             self._resize(accept_lower_width=len(self.pkgs) > 0)
-
-            if len(self.pkgs) == 0 and len(self.pkgs_available) == 0:
-                self.label_displayed.setText("")
-            else:
-                self.label_displayed.setText(f"{len(self.pkgs)} / {len(self.pkgs_available)}")
-        else:
-            self.label_displayed.hide()
-
-        if signal:
-            self.signal_table_update.emit()
 
     def update_bt_upgrade(self, pkgs_info: dict = None):
         show_bt_upgrade = False
 
         if not any([self.suggestions_requested, self.search_performed]) and (not pkgs_info or pkgs_info['not_installed'] == 0):
-            for pkg in (pkgs_info['pkgs_displayed'] if pkgs_info else self.pkgs):
+            for pkg in (pkgs_info['pkgs_displayed'] if pkgs_info else self.matched_packages):
                 if not pkg.model.is_update_ignored() and pkg.update_checked:
                     show_bt_upgrade = True
                     break
@@ -1003,7 +1040,6 @@ class ManageWindow(QWidget):
 
     def _gen_filters(self, ignore_updates: bool = False) -> PackageFilters:
         return PackageFilters(category=self.category_filter,
-                              display_limit=0 if self.filter_updates else self.display_limit,
                               name=self.input_name.text().strip(),
                               only_apps=False if self.search_performed else self.filter_only_apps,
                               only_verified=self.filter_only_verified,
@@ -1075,7 +1111,8 @@ class ManageWindow(QWidget):
         if as_installed:
             self.pkgs_installed = pkgs_info['pkgs']
 
-        self.pkgs = pkgs_info['pkgs_displayed']
+        if not keep_filters:
+            self.page_index = 0
         self._update_installed_filter(installed_available=pkgs_info['installed'] > 0,
                                       keep_state=keep_filters,
                                       hide=as_installed)
@@ -1248,7 +1285,7 @@ class ManageWindow(QWidget):
                                action_id=ACTION_UPGRADE)
             self.comp_manager.set_components_visible(False)
             self._handle_console_option(True)
-            self.thread_update.pkgs = self.pkgs
+            self.thread_update.pkgs = self.matched_packages
             self.thread_update.start()
 
     def _finish_upgrade_selected(self, res: dict):
@@ -1577,6 +1614,7 @@ class ManageWindow(QWidget):
             self.update_custom_actions()
             self._update_installed_filter(installed_available=True, keep_state=True)
             self._update_index()
+            self.begin_apply_filters(keep_page=True)
             self.table_apps.change_headers_policy(policy=QHeaderView.Stretch, maximized=self._maximized)
             self.table_apps.change_headers_policy(policy=QHeaderView.ResizeToContents, maximized=self._maximized)
             self._resize(accept_lower_width=False)
@@ -1704,29 +1742,6 @@ class ManageWindow(QWidget):
         self._finish_action(action_id=ACTION_IGNORE_UPDATES)
 
         if res['success']:
-            hide_package = commons.is_package_hidden(res['pkg'], self._gen_filters())
-
-            if hide_package:
-                idx_to_remove = None
-                for pkg in self.pkgs:
-                    if pkg == res['pkg']:
-                        idx_to_remove = pkg.table_index
-                        break
-
-                if idx_to_remove is not None:
-                    del self.pkgs[idx_to_remove]
-                    self.table_apps.removeRow(idx_to_remove)
-                    self._update_table_indexes()
-                    self.update_bt_upgrade()
-            else:
-                screen_width = get_current_screen_geometry(self).width()
-                for pkg in self.pkgs:
-                    if pkg == res['pkg']:
-                        pkg.update_model(res['pkg'].model)
-                        self.table_apps.update_package(pkg, screen_width=screen_width, change_update_col=not any([self.search_performed, self.suggestions_requested]))
-                        self.update_bt_upgrade()
-                        break
-
             for pkg_list in (self.pkgs_available, self.pkgs_installed):
                 if pkg_list:
                     for pkg in pkg_list:
@@ -1740,6 +1755,7 @@ class ManageWindow(QWidget):
             dialog.show_message(title=self.i18n['success'].capitalize(),
                                 body=self.i18n['action.{}.success'.format(res['action'])].format(bold(res['pkg'].model.name)),
                                 type_=MessageType.INFO)
+            self.begin_apply_filters(keep_page=True)
         else:
             dialog.show_message(title=self.i18n['fail'].capitalize(),
                                 body=self.i18n['action.{}.fail'.format(res['action'])].format(bold(res['pkg'].model.name)),

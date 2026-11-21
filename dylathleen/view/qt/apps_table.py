@@ -248,7 +248,7 @@ class PackagesTable(QTableWidget):
 
         if icon_data:
             for pkg in self.window.pkgs:
-                if pkg.table_index == table_idx:
+                if pkg.table_index == table_idx and pkg.model.icon_url == url_:
                     self._update_icon(self.cellWidget(table_idx, 0), icon_data['icon'])
 
                     if pkg.model.supports_disk_cache() and pkg.model.get_disk_icon_path() and icon_data['bytes']:

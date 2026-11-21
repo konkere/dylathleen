@@ -861,7 +861,7 @@ class AnimateProgress(QThread):
 class NotifyPackagesReady(QThread):
 
     signal_finished = pyqtSignal()
-    signal_changed = pyqtSignal(int)
+    signal_changed = pyqtSignal(object)
 
     def __init__(self, pkgs: List[PackageView] = None):
         super(NotifyPackagesReady, self).__init__()
@@ -880,7 +880,7 @@ class NotifyPackagesReady(QThread):
                 elif pkg.model.status == PackageStatus.READY:
                     to_remove.append(idx)
                     if pkg.status == PackageViewStatus.LOADING:
-                        self.signal_changed.emit(pkg.table_index)
+                        self.signal_changed.emit(pkg)
 
             if not self.work:
                 break
@@ -982,17 +982,12 @@ class ApplyFilters(AsyncAction):
         self.wait_table_update = False
 
     def run(self):
-        if self.index and self.filters and self.pkgs:
-            if self.filters.anything:
-                # it means no filter should be applied, and when can rely on the firstly displayed packages
-                sorted_pkgs = self.pkgs
-
-                if self.filters.display_limit > 0:
-                    sorted_pkgs = sorted_pkgs[0:self.filters.display_limit]
-                
+        if self.filters is not None:
+            if self.filters.anything or not self.pkgs:
+                sorted_pkgs = self.pkgs or []
             else:
                 ti = time.time()
-                sort_term = self.filters.name or self.filters.search  # improves displayed matches when no name typed
+                sort_term = (self.filters.name or self.filters.search or "").lower()  # improves displayed matches when no name typed
                 matched_pkgs = query_packages(index=self.index, filters=self.filters)
                 sorted_pkgs = commons.sort_packages(pkgs=matched_pkgs, word=sort_term)
                 tf = time.time()
