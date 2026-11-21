@@ -688,6 +688,14 @@ class FlatpakManager(SoftwareManager, SettingsController):
                                    manager_method='clean_unused', requires_root=False,
                                    requires_confirmation=False)
 
+    def pin_runtime(self, pkg, root_password, watcher):
+        from dylathleen.gems.flatpak.runtimes import change_pin
+        return change_pin(pkg, watcher, self.i18n, remove=False)
+
+    def unpin_runtime(self, pkg, root_password, watcher):
+        from dylathleen.gems.flatpak.runtimes import change_pin
+        return change_pin(pkg, watcher, self.i18n, remove=True)
+
     def clean_unused(self, root_password: Optional[str], watcher: ProcessWatcher) -> bool:
         from dylathleen.gems.flatpak.cleanup import clean_unused
         return clean_unused(self.i18n, watcher)

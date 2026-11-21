@@ -30,14 +30,14 @@ def catalogue_version(installed, reported):
 
 
 def inventory(scope, online):
-    columns = 'ref,origin,active,version,name,description,options'
+    columns = 'ref,origin,active,version,name,description,runtime,options'
     output = _read('list', '--' + scope, '--all', '--columns=' + columns)
     rows = {}
     for line in output.splitlines():
         parts = line.split('\t')
-        if len(parts) != 7:
+        if len(parts) != 8:
             continue
-        ref, origin, commit, version, name, description, options = parts
+        ref, origin, commit, version, name, description, required_runtime, options = parts
         runtime = 'runtime' in options.split(',')
         if ref.count('/') == 2:
             ref = ('runtime/' if runtime else 'app/') + ref
@@ -46,7 +46,7 @@ def inventory(scope, online):
         kind, app_id, arch, branch = ref.split('/')
         rows[ref, origin] = dict(id=app_id, arch=arch, branch=branch, ref=ref,
                                  runtime=kind == 'runtime', installation=scope, origin=origin,
-                                 commit=commit, version=version or None, name=name or app_id,
+                                 required_runtime=required_runtime, commit=commit, version=version or None, name=name or app_id,
                                  description=description, partial='partial' in options)
     if online and rows:
         try:
@@ -80,9 +80,13 @@ def deployments(online):
     with ThreadPoolExecutor(max_workers=2) as pool:
         tasks = {scope: pool.submit(inventory, scope, online) for scope in ('system', 'user')}
         rows = []
+        complete = True
         for scope, task in tasks.items():
             try:
                 rows.extend(task.result())
             except (OSError, subprocess.SubprocessError) as exc:
+                complete = False
                 logging.getLogger(__name__).warning('Cannot list Flatpak installation (%s): %s', scope, exc)
+        from dylathleen.gems.flatpak.runtimes import annotate_runtimes
+        annotate_runtimes(rows, complete)
         return rows

@@ -1,6 +1,7 @@
 import operator
 import os
 from functools import reduce
+from html import escape
 from logging import Logger
 from threading import Lock
 from typing import List, Optional, Dict
@@ -8,7 +9,7 @@ from typing import List, Optional, Dict
 from PyQt5.QtCore import Qt, QSize
 from PyQt5.QtGui import QPixmap, QIcon, QCursor
 from PyQt5.QtWidgets import QTableWidget, QTableView, QMenu, QToolButton, QWidget, \
-    QHeaderView, QLabel, QHBoxLayout, QToolBar, QSizePolicy
+    QHeaderView, QMessageBox, QLabel, QHBoxLayout, QToolBar, QSizePolicy
 
 from dylathleen.api.abstract.cache import MemoryCache
 from dylathleen.api.abstract.model import PackageStatus, CustomSoftwareAction
@@ -406,6 +407,25 @@ class PackagesTable(QTableWidget):
                 label_version.setText(preview)
                 tooltip = preview
 
+        if getattr(pkg.model, 'runtime', False) and pkg.model.installed and pkg.model.get_type() == 'flatpak':
+            model = pkg.model
+            branch = self.i18n['flatpak.runtime.branch'].format(model.branch)
+            if label_version.text() == '?':
+                label_version.setText(branch)
+            elif model.branch and model.version != model.branch:
+                item.layout().addWidget(QLabel(branch))
+            tooltip = model.ref
+            action = model.pin_action()
+            if action:
+                pin_text = self.i18n['flatpak.pin.active' if model.pin_rules else 'flatpak.pin.inactive']
+                button = self._gen_row_button(pin_text, 'flatpak_pin',
+                                              lambda: self.window.begin_execute_custom_action(pkg, action),
+                                              self.i18n[action.i18n_label_key])
+                button.setToolTip('\n'.join([self.i18n[action.i18n_label_key], model.installation, *model.pin_rules]))
+                item.layout().addWidget(button)
+            elif model.ref:
+                item.layout().addWidget(QLabel(self.i18n['flatpak.pin.unknown']))
+
         item.setToolTip(tooltip)
         self.setCellWidget(pkg.table_index, col, item)
 
@@ -507,7 +527,35 @@ class PackagesTable(QTableWidget):
         if pkg.model.description:
             item.setToolTip(pkg.model.description)
 
+        if getattr(pkg.model, 'runtime', False) and pkg.model.installed and pkg.model.get_type() == 'flatpak':
+            model = pkg.model
+            toolbar = QCustomToolbar()
+            toolbar.add_widget(item)
+            if model.runtime_apps is None:
+                toolbar.add_widget(QLabel(self.i18n['flatpak.runtime.unknown']))
+            else:
+                parents = model.extension_parents
+                label = self.i18n['flatpak.runtime.apps'].format(len(model.runtime_apps))
+                if len(parents) == 1:
+                    _, parent_id, _, branch = parents[0].split('/')
+                    label = self.i18n['flatpak.runtime.via'].format(parent_id, branch, len(model.runtime_apps))
+                button = self._gen_row_button(label, 'flatpak_runtime_apps',
+                                              lambda: self._show_runtime_apps(model), model.ref)
+                toolbar.add_widget(button)
+            item = toolbar
+
         self.setCellWidget(pkg.table_index, col, item)
+
+    def _show_runtime_apps(self, model):
+        lines = [f'{model.ref} ({model.installation})']
+        if model.extension_parents:
+            lines.extend([self.i18n['flatpak.runtime.parents'], *model.extension_parents])
+        if model.runtime_apps:
+            lines.append(self.i18n['flatpak.runtime.apps'].format(len(model.runtime_apps)))
+            lines.extend(f'{name} — {ref} ({scope})' for name, ref, scope in model.runtime_apps)
+        else:
+            lines.append(self.i18n['flatpak.runtime.none'])
+        QMessageBox.information(self, self.i18n['flatpak.runtime.title'], '<br>'.join(map(escape, lines)))
 
     def _set_col_publisher(self, col: int, pkg: PackageView, screen_width: int):
         item = QToolBar()

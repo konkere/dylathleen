@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from dylathleen.api.abstract.model import SoftwarePackage, PackageStatus
+from dylathleen.api.abstract.model import SoftwarePackage, PackageStatus, CustomSoftwareAction
 from dylathleen.commons import resource
 from dylathleen.gems.flatpak import ROOT_DIR, VERSION_1_2
 from dylathleen.view.util.translation import I18n
@@ -12,7 +12,8 @@ class FlatpakApplication(SoftwarePackage):
                  description: str = None, branch: str = None, arch: str = None, origin: str = None,
                  runtime: bool = False, ref: str = None, commit: str = None, installation: str = None,
                  i18n: I18n = None, partial: bool = False, updates_ignored: bool = False, installed: bool = False,
-                 update: bool = False, update_component: bool = False, target_commit: str = None):
+                 update: bool = False, update_component: bool = False, target_commit: str = None,
+                 required_runtime=None, pin_rules=None, runtime_apps=None, extension_parents=None):
         super(FlatpakApplication, self).__init__(id=id, name=name, version=version, latest_version=latest_version,
                                                  description=description, installed=installed, update=update)
         self.ref = ref
@@ -20,6 +21,10 @@ class FlatpakApplication(SoftwarePackage):
         self.arch = arch
         self.origin = origin
         self.runtime = runtime
+        self.required_runtime = required_runtime
+        self.pin_rules = pin_rules
+        self.runtime_apps = runtime_apps
+        self.extension_parents = extension_parents or []
         self.commit = commit
         self.target_commit = target_commit
         self.partial = partial
@@ -32,6 +37,17 @@ class FlatpakApplication(SoftwarePackage):
 
         if runtime:
             self.categories = ['runtime']
+
+    def pin_action(self):
+        if self.installed and self.runtime and self.pin_rules is not None:
+            key = 'flatpak.pin.remove' if self.pin_rules else 'flatpak.pin.add'
+            return CustomSoftwareAction(key, key, self.get_type_icon_path(),
+                                        'unpin_runtime' if self.pin_rules else 'pin_runtime',
+                                        requires_root=False, requires_confirmation=False)
+
+    def get_custom_actions(self):
+        action = self.pin_action()
+        return [action] if action else []
 
     def is_incomplete(self):
         return self.description is None and self.icon_url

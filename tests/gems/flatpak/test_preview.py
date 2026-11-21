@@ -7,7 +7,7 @@ from dylathleen.gems.flatpak.model import FlatpakApplication
 
 
 class PreviewTest(TestCase):
-    local = 'org.example.App/x86_64/stable\tstore\taaaaaa\t3.2.4\tApp\tDescription\tuser,current\n'
+    local = 'org.example.App/x86_64/stable\tstore\taaaaaa\t3.2.4\tApp\tDescription\torg.example.Platform/x86_64/stable\tuser,current\n'
     ref = 'app/org.example.App/x86_64/stable'
 
     def preview(self, remote, refresh=''):

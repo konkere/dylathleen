@@ -859,6 +859,10 @@ class ManageWindow(QWidget):
             if self._can_notify_user():
                 util.notify_user('{} ({}) {}'.format(src_pkg.model.name, src_pkg.model.get_type(), self.i18n['uninstalled']))
 
+            if self._refresh_runtime_usage(src_pkg):
+                notify_tray()
+                return
+
             if res['removed']:
                 screen_width = get_current_screen_geometry(self).width()
                 for list_idx, pkg_list in enumerate((self.pkgs_available, self.pkgs, self.pkgs_installed)):
@@ -1549,6 +1553,16 @@ class ManageWindow(QWidget):
             log_msg = '\n* ' + self.i18n['console.operation_log'].format(path=f'"{log_file}"')
             self.textarea_details.appendPlainText(log_msg)
 
+    def _refresh_runtime_usage(self, pkg):
+        if pkg.model.get_type() == 'flatpak':
+            if self.search_performed or self.suggestions_requested:
+                self.installed_loaded = False
+            else:
+                self.update_custom_actions()
+                self.begin_refresh_packages(pkg_types={type(pkg.model)})
+                return True
+        return False
+
     def _finish_install(self, res: dict):
         self._finish_action(action_id=ACTION_INSTALL)
         self._write_operation_logs('install', res['pkg'])
@@ -1556,6 +1570,9 @@ class ManageWindow(QWidget):
         if res['success']:
             if self._can_notify_user():
                 util.notify_user(msg='{} ({}) {}'.format(res['pkg'].model.name, res['pkg'].model.get_type(), self.i18n['installed']))
+
+            if self._refresh_runtime_usage(res['pkg']):
+                return
 
             models_updated = []
 
