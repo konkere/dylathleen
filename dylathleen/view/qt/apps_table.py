@@ -32,11 +32,8 @@ class RuntimePinButton(QToolButton):
         self.setAccessibleName(action_label)
         self.setToolTip(tooltip)
         self.setCursor(Qt.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setFixedSize(26, 26)
         self.clicked.connect(callback)
-
-    def sizeHint(self):
-        return QSize(30, 24)
 
     def paintEvent(self, event):
         super().paintEvent(event)
@@ -470,7 +467,7 @@ class PackagesTable(QTableWidget):
                 button = RuntimePinButton(bool(model.pin_rules), label,
                                           '\n'.join([state, label, model.installation, *model.pin_rules]),
                                           lambda: self.window.begin_execute_custom_action(pkg, action))
-                item.layout().addWidget(button)
+                item.layout().addWidget(button, 0, Qt.AlignRight | Qt.AlignVCenter)
             elif model.ref:
                 item.layout().addWidget(QLabel(self.i18n['flatpak.pin.unknown']))
 
