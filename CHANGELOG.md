@@ -1,3 +1,10 @@
+# Dylath-Leen 0.2.0 — 2026-11-22
+
+- **Clean up unused Flatpak runtimes.** Preview candidates in the user and system installations and select exactly which refs to remove. Flatpak checks the selection again before removal. [bauh #353](https://github.com/vinifmor/bauh/issues/353)
+- **Inspect and manage Flatpak runtime pins.** Use the pushpin beside a runtime to pin or unpin it. The confirmation lists the rules and installed refs affected, including other refs covered by a shared rule. Click the application count to see which installed apps use the runtime or extension. [bauh #353](https://github.com/vinifmor/bauh/issues/353)
+- **Page through the package list.** Previous and next controls show the current row range and the total number of matches. Search and filters apply to the entire loaded list, and update selections survive page changes. Set Rows per page to 0 to show every match. [bauh #387](https://github.com/vinifmor/bauh/issues/387), [bauh #293](https://github.com/vinifmor/bauh/issues/293), [bauh #331](https://github.com/vinifmor/bauh/issues/331)
+- **Read the package table at a glance.** Short column headings and consistent alignment make versions, Flatpak branches, descriptions and row actions easier to scan.
+
 # Dylath-Leen 0.1.2 — 2026-11-21
 
 * Use Twilight Small with an amber dot as the default tray icon when updates are available. Render the SVG at the size the tray requests.
