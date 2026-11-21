@@ -7,7 +7,7 @@ from threading import Lock
 from typing import List, Optional, Dict
 
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap, QIcon, QCursor
+from PyQt5.QtGui import QPixmap, QIcon, QCursor, QPainter, QPainterPath, QPalette, QPen
 from PyQt5.QtWidgets import QTableWidget, QTableView, QMenu, QToolButton, QWidget, \
     QHeaderView, QMessageBox, QLabel, QHBoxLayout, QToolBar, QSizePolicy
 
@@ -22,6 +22,52 @@ from dylathleen.view.qt.qt_utils import get_current_screen_geometry
 from dylathleen.view.qt.thread import URLFileDownloader
 from dylathleen.view.qt.view_model import PackageView
 from dylathleen.view.util.translation import I18n
+
+
+class RuntimePinButton(QToolButton):
+    def __init__(self, pinned, action_label, tooltip, callback):
+        super().__init__()
+        self.pinned = pinned
+        self.setObjectName('flatpak_pin')
+        self.setAccessibleName(action_label)
+        self.setToolTip(tooltip)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.clicked.connect(callback)
+
+    def sizeHint(self):
+        return QSize(30, 24)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.translate(self.width() / 2, self.height() / 2)
+        side = min(20, self.width() - 4, self.height() - 4)
+        painter.scale(side / 24, side / 24)
+        color = self.palette().color(QPalette.ButtonText)
+        painter.setPen(QPen(color, 1.8, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin))
+        painter.save()
+        painter.rotate(35)
+        head = QPainterPath()
+        head.moveTo(-5, -9)
+        head.lineTo(5, -9)
+        head.lineTo(3, -6)
+        head.lineTo(3, -1)
+        head.lineTo(6, 2)
+        head.lineTo(6, 3)
+        head.lineTo(-6, 3)
+        head.lineTo(-6, 2)
+        head.lineTo(-3, -1)
+        head.lineTo(-3, -6)
+        head.closeSubpath()
+        if self.pinned:
+            painter.fillPath(head, color)
+        painter.drawPath(head)
+        painter.drawLine(0, 3, 0, 10)
+        painter.restore()
+        if not self.pinned:
+            painter.drawLine(-9, -9, 9, 9)
 
 
 class UpgradeToggleButton(QToolButton):
@@ -419,12 +465,11 @@ class PackagesTable(QTableWidget):
             tooltip = model.ref
             action = model.pin_action()
             if action:
-                pin_text = self.i18n['flatpak.pin.active' if model.pin_rules else 'flatpak.pin.inactive']
-                button = self._gen_row_button(pin_text, 'flatpak_pin',
-                                              lambda: self.window.begin_execute_custom_action(pkg, action),
-                                              self.i18n[action.i18n_label_key])
-                button.setToolTip('\n'.join([self.i18n[action.i18n_label_key], model.installation, *model.pin_rules]))
-                button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+                state = self.i18n['flatpak.pin.active' if model.pin_rules else 'flatpak.pin.inactive']
+                label = self.i18n[action.i18n_label_key]
+                button = RuntimePinButton(bool(model.pin_rules), label,
+                                          '\n'.join([state, label, model.installation, *model.pin_rules]),
+                                          lambda: self.window.begin_execute_custom_action(pkg, action))
                 item.layout().addWidget(button)
             elif model.ref:
                 item.layout().addWidget(QLabel(self.i18n['flatpak.pin.unknown']))
