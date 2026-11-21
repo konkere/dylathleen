@@ -121,17 +121,21 @@ class PackagesTable(QTableWidget):
         self.setObjectName('table_packages')
         self.setParent(parent)
         self.window = parent
+        self.i18n = self.window.i18n
         self.download_icons = download_icons
         self.logger = logger
         self.setColumnCount(self.COL_NUMBER)
         self.setFocusPolicy(Qt.NoFocus)
         self.setShowGrid(False)
         self.verticalHeader().setVisible(False)
-        self.horizontalHeader().setVisible(False)
+        self.horizontalHeader().setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.horizontalHeader().setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.setSelectionBehavior(QTableView.SelectRows)
-        self.setHorizontalHeaderLabels(('' for _ in range(self.columnCount())))
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        headers = ('name', 'version', 'description', 'publisher', 'type',
+                   'table.packages.installation', 'table.packages.actions', 'updates')
+        self.setHorizontalHeaderLabels(['', *(self.i18n[key].capitalize() for key in headers)])
+        self.hideColumn(self.COL_NUMBER - 1)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.horizontalScrollBar().setCursor(QCursor(Qt.PointingHandCursor))
         self.verticalScrollBar().setCursor(QCursor(Qt.PointingHandCursor))
@@ -143,7 +147,6 @@ class PackagesTable(QTableWidget):
         self.setRowHeight(80, 80)
         self.cache_type_icon = {}
         self.cache_default_icon: Dict[str, QIcon] = dict()
-        self.i18n = self.window.i18n
 
     def has_any_settings(self, pkg: PackageView):
         return pkg.model.has_history() or \
@@ -304,9 +307,10 @@ class PackagesTable(QTableWidget):
         self.setRowCount(0)  # removes the overwrite effect when updates the table
         self.setEnabled(True)
 
+        self.setColumnHidden(self.COL_NUMBER - 1, not (pkgs and update_check_enabled))
+
         if pkgs:
             screen_width = get_current_screen_geometry(self.parent()).width()
-            self.setColumnCount(self.COL_NUMBER if update_check_enabled else self.COL_NUMBER - 1)
             self.setRowCount(len(pkgs))
 
             file_downloader_defined = False
@@ -415,12 +419,16 @@ class PackagesTable(QTableWidget):
     def _set_col_version(self, col: int, pkg: PackageView, screen_width: int):
         label_version = QLabel(str(pkg.model.version if pkg.model.version else '?'))
         label_version.setObjectName('app_version')
-        label_version.setAlignment(Qt.AlignCenter)
+        label_version.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        label_version.setTextFormat(Qt.PlainText)
+        label_version.setMinimumWidth(0)
 
         item = QWidget()
         item.setProperty('container', 'true')
         item.setLayout(QHBoxLayout())
-        item.layout().addWidget(label_version)
+        item.layout().setContentsMargins(2, 0, 2, 0)
+        item.layout().setSpacing(8)
+        item.layout().addWidget(label_version, 1)
 
         if pkg.model.version:
             tooltip = self.i18n['version.installed'] if pkg.model.installed else self.i18n['version']
@@ -446,20 +454,20 @@ class PackagesTable(QTableWidget):
         if pkg.model.update and not pkg.model.is_update_ignored():
             preview = pkg.model.update_version_label(self.i18n)
             if preview:
-                label_version.setTextFormat(Qt.PlainText)
                 label_version.setText(preview)
                 tooltip = preview
 
         if getattr(pkg.model, 'runtime', False) and pkg.model.installed and pkg.model.get_type() == 'flatpak':
-            item.layout().setContentsMargins(2, 0, 2, 0)
-            item.layout().setSpacing(4)
             model = pkg.model
-            branch = self.i18n['flatpak.runtime.branch'].format(model.branch)
-            if label_version.text() == '?':
-                label_version.setText(branch)
-            elif model.branch and model.version != model.branch:
-                item.layout().addWidget(QLabel(branch))
-            tooltip = model.ref
+            if model.branch:
+                branch = self.i18n['flatpak.runtime.branch'].format(model.branch)
+                version = label_version.text()
+                if version == '?':
+                    label_version.setText(branch)
+                elif version != model.branch:
+                    label_version.setText(f'{version} · {branch}')
+            if model.ref:
+                tooltip = f'{tooltip}\n{model.ref}'
             action = model.pin_action()
             if action:
                 state = self.i18n['flatpak.pin.active' if model.pin_rules else 'flatpak.pin.inactive']
@@ -712,7 +720,7 @@ class PackagesTable(QTableWidget):
         header_horizontal = self.horizontalHeader()
         for i in range(self.columnCount()):
             if maximized:
-                if i in (2, 3):
+                if i == 3:
                     header_horizontal.setSectionResizeMode(i, QHeaderView.Stretch)
                 else:
                     header_horizontal.setSectionResizeMode(i, QHeaderView.ResizeToContents)

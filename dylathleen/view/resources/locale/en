@@ -550,3 +550,6 @@ yes=yes
 pagination.previous=Previous page
 pagination.next=Next page
 pagination.range={}–{} of {}
+
+table.packages.installation=Install
+table.packages.actions=Actions
