@@ -292,6 +292,15 @@ PackagesTable QLabel[icon = "true"]  {
     margin-top: 7px;
 }
 
+PackagesTable QToolButton#flatpak_pin, PackagesTable QToolButton#flatpak_runtime_apps {
+    min-width: 0px;
+    max-width: 40em;
+    min-height: 0px;
+    max-height: 4em;
+    margin: 0px;
+    padding: 2px 7px;
+}
+
 PackagesTable QToolButton#bt_install {
     font-size: 10px;
     font-weight: bold;

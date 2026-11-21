@@ -79,7 +79,6 @@ flatpak.pin.affected=Установленные среды, на которые 
 flatpak.pin.changed=Список или правила изменились. Обновите список и повторите действие.
 flatpak.runtime.branch=Ветка {}
 flatpak.runtime.apps=Приложения: {}
-flatpak.runtime.via=Через {} {}: {}
 flatpak.runtime.unknown=Использование неизвестно
 flatpak.runtime.parents=Родительские компоненты
 flatpak.runtime.none=Установленных приложений, использующих этот компонент, нет.

@@ -408,6 +408,8 @@ class PackagesTable(QTableWidget):
                 tooltip = preview
 
         if getattr(pkg.model, 'runtime', False) and pkg.model.installed and pkg.model.get_type() == 'flatpak':
+            item.layout().setContentsMargins(2, 0, 2, 0)
+            item.layout().setSpacing(4)
             model = pkg.model
             branch = self.i18n['flatpak.runtime.branch'].format(model.branch)
             if label_version.text() == '?':
@@ -422,6 +424,7 @@ class PackagesTable(QTableWidget):
                                               lambda: self.window.begin_execute_custom_action(pkg, action),
                                               self.i18n[action.i18n_label_key])
                 button.setToolTip('\n'.join([self.i18n[action.i18n_label_key], model.installation, *model.pin_rules]))
+                button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                 item.layout().addWidget(button)
             elif model.ref:
                 item.layout().addWidget(QLabel(self.i18n['flatpak.pin.unknown']))
@@ -534,15 +537,19 @@ class PackagesTable(QTableWidget):
             if model.runtime_apps is None:
                 toolbar.add_widget(QLabel(self.i18n['flatpak.runtime.unknown']))
             else:
-                parents = model.extension_parents
                 label = self.i18n['flatpak.runtime.apps'].format(len(model.runtime_apps))
-                if len(parents) == 1:
-                    _, parent_id, _, branch = parents[0].split('/')
-                    label = self.i18n['flatpak.runtime.via'].format(parent_id, branch, len(model.runtime_apps))
+                details = [f'{model.ref} ({model.installation})']
+                if model.extension_parents:
+                    details.extend([self.i18n['flatpak.runtime.parents'], *model.extension_parents])
                 button = self._gen_row_button(label, 'flatpak_runtime_apps',
-                                              lambda: self._show_runtime_apps(model), model.ref)
+                                              lambda: self._show_runtime_apps(model), '\n'.join(details))
+                button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
                 toolbar.add_widget(button)
             item = toolbar
+            version_cell = self.cellWidget(pkg.table_index, 2)
+            if version_cell:
+                height = max(version_cell.sizeHint().height(), toolbar.sizeHint().height())
+                self.setRowHeight(pkg.table_index, max(self.verticalHeader().defaultSectionSize(), height))
 
         self.setCellWidget(pkg.table_index, col, item)
 
