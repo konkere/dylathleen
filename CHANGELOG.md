@@ -1,3 +1,8 @@
+# Dylath-Leen 0.3.0 — 2026-11-22
+
+- **Keep the working AppImage if a version change fails.** Upgrades, downgrades and manual updates validate the replacement before switching executables. The existing command symlink keeps its target, and interrupted changes to the desktop launcher, icon and package metadata are recovered the next time the manager accesses the installation. Related upstream report of AppImage file loss: [bauh #320](https://github.com/vinifmor/bauh/issues/320).
+- Manual updates preserve the selected source file. Downgrades use the chosen older release even when a newer update is available.
+
 # Dylath-Leen 0.2.0 — 2026-11-22
 
 - **Clean up unused Flatpak runtimes.** Preview candidates in the user and system installations and select exactly which refs to remove. Flatpak checks the selection again before removal. [bauh #353](https://github.com/vinifmor/bauh/issues/353)

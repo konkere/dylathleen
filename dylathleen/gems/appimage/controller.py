@@ -6,6 +6,8 @@ import shutil
 import sqlite3
 import subprocess
 import traceback
+from configparser import ConfigParser
+from copy import copy
 from datetime import datetime
 from pathlib import Path
 from typing import Set, Type, List, Tuple, Optional, Iterable, Generator
@@ -27,7 +29,7 @@ from dylathleen.commons.boot import CreateConfigFile
 from dylathleen.commons.html import bold
 from dylathleen.commons.system import SystemProcess, new_subprocess, ProcessHandler, SimpleProcess
 from dylathleen.commons.version_util import normalize_version
-from dylathleen.gems.appimage import query, INSTALLATION_DIR, APPIMAGE_SHARED_DIR, ROOT_DIR, \
+from dylathleen.gems.appimage import replacement, query, INSTALLATION_DIR, APPIMAGE_SHARED_DIR, ROOT_DIR, \
     APPIMAGE_CONFIG_DIR, UPDATES_IGNORED_FILE, util, get_default_manual_installation_file_dir, DATABASE_APPS_FILE, \
     DATABASE_RELEASES_FILE, APPIMAGE_CACHE_DIR, get_icon_path, DOWNLOAD_DIR
 from dylathleen.gems.appimage.config import AppImageConfigManager
@@ -166,12 +168,11 @@ class AppImageManager(SoftwareManager, SettingsController):
             else:
                 return False
 
-        pkg.local_file_path = file_chooser.file_path
-        pkg.version = input_version.get_value()
-        pkg.manual_update = True
-
-        reqs = UpgradeRequirements(to_install=None, to_remove=None, to_upgrade=[UpgradeRequirement(pkg=pkg)], cannot_upgrade=None)
-        return self.upgrade(reqs, root_password=root_password, watcher=watcher)
+        candidate = copy(pkg)
+        candidate.version = candidate.latest_version = input_version.get_value()
+        candidate.manual_update = True
+        candidate.local_file_path = file_chooser.file_path
+        return self._replace_version(pkg, candidate, watcher)
 
     def _get_db_connection(self, db_path: str) -> sqlite3.Connection:
         if os.path.exists(db_path):
@@ -249,6 +250,10 @@ class AppImageManager(SoftwareManager, SettingsController):
 
     def read_installed(self, disk_loader: Optional[DiskCacheLoader], limit: int = -1, only_apps: bool = False,
                        pkg_types: Optional[Set[Type[SoftwarePackage]]] = None, internet_available: bool = None, connection: sqlite3.Connection = None) -> SearchResult:
+        with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):
+            return self._read_installed(connection)
+
+    def _read_installed(self, connection):
         installed_apps = []
         res = SearchResult(installed_apps, [], 0)
 
@@ -261,6 +266,7 @@ class AppImageManager(SoftwareManager, SettingsController):
                     if path:
                         with open(path) as f:
                             app = AppImage(installed=True, i18n=self.i18n, **json.loads(f.read()))
+                            app.install_dir = app.install_dir or os.path.dirname(path)
                             app.icon_url = app.icon_path
 
                         installed_apps.append(app)
@@ -337,29 +343,11 @@ class AppImageManager(SoftwareManager, SettingsController):
             return False
         else:
             old_release = versions.history[versions.pkg_status_idx + 1]
-            pkg.version = old_release['0_version']
-            pkg.latest_version = pkg.version
-            pkg.url_download = old_release['2_url_download']
-
-            download_data = self._download(pkg=pkg, watcher=watcher)
-
-            if not download_data:
-                return False
-
-            if self.uninstall(pkg, root_password, watcher).success:
-                if self._install(pkg=pkg, watcher=watcher, pre_downloaded_file=download_data).success:
-                    self.cache_to_disk(pkg, None, False)
-                    return True
-                else:
-                    watcher.show_message(title=self.i18n['error'],
-                                         body=self.i18n['appimage.downgrade.install_version'].format(bold(pkg.version), bold(pkg.url_download)),
-                                         type_=MessageType.ERROR)
-            else:
-                watcher.show_message(title=self.i18n['error'],
-                                     body=self.i18n['appimage.error.uninstall_current_version'].format(bold(pkg.name)),
-                                     type_=MessageType.ERROR)
-
-            return False
+            candidate = copy(pkg)
+            candidate.version = candidate.latest_version = old_release['0_version']
+            candidate.url_download = old_release['2_url_download']
+            candidate.manual_update = False
+            return self._replace_version(pkg, candidate, watcher)
 
     def upgrade(self, requirements: UpgradeRequirements, root_password: Optional[str], watcher: ProcessWatcher) -> bool:
         not_upgraded = []
@@ -367,37 +355,17 @@ class AppImageManager(SoftwareManager, SettingsController):
         for req in requirements.to_upgrade:
             watcher.change_status(f"{self.i18n['manage_window.status.upgrading']} {req.pkg.name} ({req.pkg.version})...")
 
-            download_data = None
+            candidate = copy(req.pkg)
+            if not candidate.manual_update:
+                candidate.version = candidate.latest_version
+                if candidate.update:
+                    candidate.url_download = candidate.url_download_latest_version
+                candidate.imported = False
+                if candidate.categories:
+                    candidate.categories = [c for c in candidate.categories if c != 'Imported']
 
-            # always changing the 'imported' field based on the 'manual_update' flag that means
-            # "the user is manually installing/updating the AppImage"
-            if not req.pkg.manual_update:
-                req.pkg.imported = False
-
-                if req.pkg.categories and "Imported" in req.pkg.categories:
-                    # removing the imported category in case the file is not considered imported anymore
-                    req.pkg.categories.remove("Imported")
-
-            # manual file updates do not required download it
-            if not req.pkg.imported:
-                download_data = self._download(req.pkg, watcher)
-
-                if not download_data:
-                    not_upgraded.append(req.pkg)
-                    watcher.change_substatus('')
-                    continue
-
-            if not self.uninstall(req.pkg, root_password, watcher).success:
+            if not self._replace_version(req.pkg, candidate, watcher):
                 not_upgraded.append(req.pkg)
-                watcher.change_substatus('')
-                continue
-
-            if not self._install(pkg=req.pkg, watcher=watcher, pre_downloaded_file=download_data).success:
-                not_upgraded.append(req.pkg)
-                watcher.change_substatus('')
-                continue
-
-            self.cache_to_disk(req.pkg, None, False)
 
         all_failed = len(not_upgraded) == len(requirements.to_upgrade)
 
@@ -410,7 +378,138 @@ class AppImageManager(SoftwareManager, SettingsController):
         watcher.change_substatus('')
         return not all_failed
 
+    def _replace_version(self, pkg: AppImage, candidate: AppImage, watcher: ProcessWatcher) -> bool:
+        try:
+            live = Path(pkg.get_disk_cache_path())
+            desktop = Path(self._gen_desktop_entry_path(pkg))
+            with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):
+                if (live.parent != Path(INSTALLATION_DIR) or live.is_symlink() or live.name.startswith('.')
+                        or desktop.parent != Path(DESKTOP_ENTRIES_DIR)):
+                    raise ValueError(f'Unexpected installation paths for {pkg.name}')
+
+                metadata = live / 'data.json'
+                previous = json.loads(metadata.read_text())
+                if previous.get('name') != pkg.name or previous.get('version') != pkg.version:
+                    raise ValueError(f'Installed version of {pkg.name} changed. Refresh the package list.')
+
+                candidate.install_dir = str(live)
+                candidate.symlink = previous.get('symlink')
+                if candidate.symlink and not os.path.lexists(candidate.symlink):
+                    candidate.symlink = None
+                image = self._installed_image(live, candidate.symlink)
+                with replacement.staging(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR) as work:
+                    self._prepare_image(candidate, work, image, watcher)
+                    contents = self._stage_integration(work, image, desktop, candidate)
+                    candidate.update = False
+                    candidate.manual_update = False
+                    candidate.local_file_path = None
+                    data = work / 'data.json'
+                    data.write_text(json.dumps(candidate.get_data_to_cache()))
+                    if watcher.should_stop():
+                        return False
+                    contents[metadata] = data
+                    replacement.publish(work, image, desktop, contents)
+                pkg.__dict__.update(vars(candidate))
+                return True
+        except Exception as error:
+            self.logger.exception('Could not replace %s', pkg.name)
+            watcher.show_message(title=self.i18n['error'], body=str(error), type_=MessageType.ERROR)
+            return False
+        finally:
+            watcher.change_substatus('')
+
+    def _prepare_image(self, candidate, work, image, watcher):
+        staged = work / 'image'
+        if candidate.manual_update:
+            source = Path(candidate.local_file_path)
+            if not source.is_file():
+                raise ValueError(f'Invalid AppImage file: {source}')
+            shutil.copyfile(source, staged)
+        elif not candidate.url_download or not self.file_downloader.download(
+                file_url=candidate.url_download, watcher=watcher, output_path=str(staged), cwd=str(work)):
+            raise ValueError(self.i18n['appimage.download.error'].format(candidate.url_download))
+
+        if not self._is_appimage(staged):
+            raise ValueError(self.i18n['appimage.custom_action.install_file.invalid_file'])
+        staged.chmod((image.stat().st_mode & 0o777) | 0o100)
+        watcher.change_substatus(self.i18n['appimage.install.extract'].format(candidate.name))
+        process = SimpleProcess([str(staged), '--appimage-extract'], cwd=str(work))
+        with process.instance.stdout:
+            extracted, output = ProcessHandler(watcher).handle_simple(process)
+        if not extracted or 'Error: Failed to register AppImage in AppImageLauncherFS' in output:
+            raise ValueError(f'AppImage extraction failed: {output[-500:]}')
+
+    @staticmethod
+    def _is_appimage(path):
+        if not path.is_file() or path.is_symlink():
+            return False
+        with path.open('rb') as stream:
+            header = stream.read(11)
+        return header[:4] == b'\x7fELF' and header[8:11] in (b'AI\x01', b'AI\x02')
+
+    def _installed_image(self, live, symlink):
+        if symlink:
+            link = Path(symlink)
+            target = link.resolve(strict=True)
+            if (not link.is_symlink() or target.parent != live.resolve() or not target.is_file()
+                    or (target.suffix.lower() != '.appimage' and not self._is_appimage(target))):
+                raise ValueError(f'Unexpected AppImage symlink: {link}')
+            return live / target.name
+        images = [p for p in live.iterdir() if p.suffix.lower() == '.appimage'
+                  and p.is_file() and not p.is_symlink()]
+        if len(images) != 1:
+            raise ValueError(f'Cannot identify the installed AppImage in {live}')
+        return images[0]
+
+    def _stage_integration(self, work, image, desktop, candidate):
+        extracted = work / 'squashfs-root'
+        if not extracted.is_dir() or extracted.is_symlink():
+            raise ValueError('Missing extracted AppImage directory')
+        extracted = extracted.resolve()
+        app_run = extracted / 'AppRun'
+        if not app_run.resolve().is_relative_to(extracted) or not app_run.is_file() or not os.access(app_run, os.X_OK):
+            raise ValueError('Missing or invalid AppRun in extracted AppImage')
+        entry = self._find_desktop_file(str(extracted))
+        if not entry or not (extracted / entry).is_file() or not (extracted / entry).resolve().is_relative_to(extracted):
+            raise ValueError('Missing or invalid AppImage desktop entry')
+        content = replace_desktop_entry_exec_command((extracted / entry).read_text(), candidate.name, str(image))
+        fields = ConfigParser(interpolation=None, strict=False, delimiters=('=',))
+        fields.optionxform = str
+        fields.read_string(content)
+        if (fields.get('Desktop Entry', 'Type', fallback='') != 'Application'
+                or str(image) not in fields.get('Desktop Entry', 'Exec', fallback='')):
+            raise ValueError('Invalid AppImage application desktop entry')
+
+        contents = {}
+        icon = self._find_icon_file(str(extracted))
+        if icon:
+            source = Path(icon)
+            if not source.resolve().is_relative_to(extracted) or not source.is_file():
+                raise ValueError(f'Invalid AppImage icon: {source}')
+            target = image.parent / ('logo' + source.suffix)
+            candidate.icon_path = str(target)
+            contents[target] = source
+        if icon or (candidate.icon_path and Path(candidate.icon_path).is_file()):
+            # Keep action-specific icons intact. Localized entries and field
+            # codes are preserved by editing only the main section's Icon key.
+            parts = re.split(r'(?=^\[)', content, flags=re.M)
+            for index, section in enumerate(parts):
+                if section.startswith('[Desktop Entry]'):
+                    section = re.sub(r'^Icon\s*=.*\n?', '', section, flags=re.M)
+                    parts[index] = section.rstrip('\n') + f'\nIcon={candidate.icon_path}\n'
+                    break
+            content = ''.join(parts)
+        candidate.icon_url = candidate.icon_path
+        launcher = work / 'launcher.desktop'
+        launcher.write_text(content)
+        contents[desktop] = launcher
+        return contents
+
     def uninstall(self, pkg: AppImage, root_password: Optional[str], watcher: ProcessWatcher, disk_loader: DiskCacheLoader = None) -> TransactionResult:
+        with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):
+            return self._uninstall(pkg, watcher)
+
+    def _uninstall(self, pkg: AppImage, watcher: ProcessWatcher) -> TransactionResult:
         if os.path.exists(pkg.get_disk_cache_path()):
             handler = ProcessHandler(watcher)
 
@@ -547,12 +646,13 @@ class AppImageManager(SoftwareManager, SettingsController):
         for r, d, files in os.walk(folder):
             for f in files:
                 if f.endswith('.desktop'):
-                    return f
+                    return os.path.relpath(os.path.join(r, f), folder)
 
     def _find_icon_file(self, folder: str) -> Optional[str]:
-        for f in glob.glob(folder + ('/**' if not folder.endswith('/') else '**'), recursive=True):
-            if RE_ICON_ENDS_WITH.match(f):
-                return f
+        for root, _, files in os.walk(folder):
+            for name in files:
+                if RE_ICON_ENDS_WITH.match(name):
+                    return os.path.join(root, name)
 
     def _download(self, pkg: AppImage, watcher: ProcessWatcher) -> Optional[Tuple[str, str]]:
         appimage_url = pkg.url_download_latest_version if pkg.update else pkg.url_download
@@ -593,6 +693,10 @@ class AppImageManager(SoftwareManager, SettingsController):
     def _install(self, pkg: AppImage, watcher: ProcessWatcher, pre_downloaded_file: Optional[Tuple[str, str]] = None) \
             -> TransactionResult:
 
+        with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):
+            return self._install_new(pkg, watcher, pre_downloaded_file)
+
+    def _install_new(self, pkg, watcher, pre_downloaded_file):
         handler = ProcessHandler(watcher)
         out_dir = f'{INSTALLATION_DIR}/{pkg.get_clean_name()}'
         counter = 0
@@ -845,7 +949,12 @@ class AppImageManager(SoftwareManager, SettingsController):
                 self.logger.error(f"Could not find the AppImage file of '{pkg.name}' in '{installation_dir}'")
 
     def cache_to_disk(self, pkg: SoftwarePackage, icon_bytes: Optional[bytes], only_icon: bool):
-        self.serialize_to_disk(pkg, icon_bytes, only_icon)
+        with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):
+            metadata = Path(pkg.get_disk_data_path())
+            if metadata.is_file() and json.loads(metadata.read_text()).get('version') != pkg.version:
+                self.logger.info('Skipping stale cache write for %s', pkg.name)
+                return
+            self.serialize_to_disk(pkg, icon_bytes, only_icon)
 
     def get_screenshots(self, pkg: AppImage) -> Generator[str, None, None]:
         if pkg.url_screenshot:

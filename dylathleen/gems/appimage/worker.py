@@ -19,7 +19,8 @@ from dylathleen.api.abstract.handler import TaskManager, ProcessWatcher
 from dylathleen.api.http import HttpClient
 from dylathleen.commons.boot import CreateConfigFile
 from dylathleen.commons.html import bold
-from dylathleen.gems.appimage import get_icon_path, INSTALLATION_DIR, SYMLINKS_DIR, util, DATABASES_TS_FILE, \
+from dylathleen.api.paths import DESKTOP_ENTRIES_DIR
+from dylathleen.gems.appimage import replacement, get_icon_path, INSTALLATION_DIR, SYMLINKS_DIR, util, DATABASES_TS_FILE, \
     APPIMAGE_CACHE_DIR, DATABASE_APPS_FILE, DATABASE_RELEASES_FILE, URL_COMPRESSED_DATABASES
 from dylathleen.gems.appimage.model import AppImage
 from dylathleen.view.util.translation import I18n
@@ -218,6 +219,10 @@ class SymlinksVerifier(Thread):
                     watcher.print('[error] {}'.format(msg))
 
     def run(self):
+        with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):
+            self._verify()
+
+    def _verify(self):
         if os.path.exists(INSTALLATION_DIR):
             installed_files = glob.glob(f'{INSTALLATION_DIR}/*/*.json')
 
