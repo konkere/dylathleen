@@ -1,6 +1,7 @@
-import traceback
 from io import StringIO
 from threading import Thread
+
+from requests.exceptions import ConnectionError
 
 from dylathleen.api.abstract.cache import MemoryCache
 from dylathleen.api.abstract.context import ApplicationContext
@@ -41,7 +42,7 @@ class FlatpakAsyncDataLoader(Thread):
             self.app.status = PackageStatus.LOADING_DATA
 
             try:
-                res = self.http_client.get('{}/{}'.format(FLATHUB_API_URL, self.app.id))
+                res = self.http_client.get(f'{FLATHUB_API_URL}/{self.app.id}', single_call=True)
 
                 if res and res.text:
                     data = res.json()
@@ -80,11 +81,13 @@ class FlatpakAsyncDataLoader(Thread):
 
                         self.api_cache.add(self.app.id, loaded_data)
                         self.persist = self.app.supports_disk_cache()
-                else:
-                    self.logger.warning("Could not retrieve app data for id '{}'. Server response: {}. Body: {}".format(self.app.id, res.status_code if res else '?', res.content.decode() if res else '?'))
+                elif res is not None:
+                    self.logger.warning("No Flathub metadata for %s (HTTP %s)", self.app.id, res.status_code)
+            except ConnectionError:
+                # HttpClient already logged the failed connection.
+                pass
             except Exception:
-                self.logger.error("Could not retrieve app data for id '{}'".format(self.app.id))
-                traceback.print_exc()
+                self.logger.exception("Could not retrieve app data for id '%s'", self.app.id)
 
             self.app.status = PackageStatus.READY
 

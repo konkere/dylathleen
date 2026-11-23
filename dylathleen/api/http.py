@@ -21,11 +21,8 @@ class HttpClient:
 
     def get(self, url: str, params: dict = None, headers: dict = None, allow_redirects: bool = True, ignore_ssl: bool = False, single_call: bool = False,
             session: bool = True, stream: bool = False) -> Optional[requests.Response]:
-        cur_attempts = 1
-
-        while cur_attempts <= self.max_attempts:
-            cur_attempts += 1
-
+        attempts = 1 if single_call else self.max_attempts
+        for attempt in range(1, attempts + 1):
             try:
                 args = {'timeout': self.timeout, 'allow_redirects': allow_redirects, 'stream': stream}
 
@@ -51,6 +48,13 @@ class HttpClient:
 
                 if self.sleep > 0:
                     time.sleep(self.sleep)
+            except requests.exceptions.ReadTimeout:
+                if attempt == attempts:
+                    self.logger.warning("GET timed out after %s attempt(s): %s", attempts, url)
+                    return None
+                if self.sleep > 0:
+                    time.sleep(self.sleep)
+                continue
             except Exception as e:
                 if isinstance(e, requests.exceptions.ConnectionError):
                     self.logger.error('Internet seems to be off')
