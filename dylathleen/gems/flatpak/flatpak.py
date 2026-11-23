@@ -442,8 +442,17 @@ def list_remotes() -> Dict[str, Set[str]]:
     return res
 
 
-def run(app_id: str):
-    subprocess.Popen(['flatpak', 'run', app_id])
+def launch_args(app):
+    args = ['flatpak', 'run', '--' + app.installation]
+    if app.arch:
+        args.append('--arch=' + app.arch)
+    if app.branch:
+        args.append('--branch=' + app.branch)
+    return [*args, app.id]
+
+
+def run(app):
+    subprocess.Popen(launch_args(app))
 
 
 def map_update_download_size(app_ids: Iterable[str], installation: str, version: Tuple[str, ...]) -> Dict[str, float]:

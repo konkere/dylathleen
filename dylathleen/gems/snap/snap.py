@@ -1,9 +1,13 @@
-import os
+import shlex
 import shutil
 import subprocess
 from io import StringIO
+from pathlib import Path
 from typing import Tuple, Optional
 
+import yaml
+
+from dylathleen.commons.installed_files import InstalledFiles
 from dylathleen.commons.system import SimpleProcess
 
 
@@ -50,8 +54,35 @@ def refresh_and_stream(app_name: str, root_password: Optional[str], channel: Opt
                          shell=True)
 
 
-def run(cmd: str):
-    subprocess.Popen((f'snap run {cmd}',), shell=True, env={**os.environ})
+def launch_args(name, commands):
+    apps = [app for app in commands if not app.get('daemon')]
+    if apps:
+        selected = next((app for app in apps if app.get('desktop-file')), apps[0])
+        command = selected['name']
+        # snapd returns the app name, while snap run expects the qualified name.
+        return ['snap', 'run', name if command == name else f'{name}.{command}']
+
+
+def application_files(name, command, apps):
+    for mount in (Path('/snap'), Path('/var/lib/snapd/snap')):
+        directory = mount / name / 'current'
+        if directory.is_dir():
+            wrapper = mount / 'bin' / command
+            launcher = wrapper
+            try:
+                with (directory / 'meta/snap.yaml').open(encoding='utf-8') as metadata:
+                    app = yaml.safe_load(metadata)['apps'][command.removeprefix(name + '.')]
+                executable = Path(shlex.split(app['command'])[0])
+                if not executable.is_absolute() and (directory / executable).is_file():
+                    launcher = directory / executable
+            except (OSError, UnicodeError, yaml.YAMLError, KeyError, ValueError, TypeError, IndexError):
+                pass  # The public snap launcher also works with incomplete metadata.
+            entries = [app.get('desktop-file') for app in apps]
+            return InstalledFiles.collect(directory, launcher, wrapper, *entries)
+
+
+def run(args):
+    subprocess.Popen(args)
 
 
 def is_api_available() -> Tuple[bool, str]:

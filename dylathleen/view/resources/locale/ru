@@ -550,3 +550,5 @@ pagination.range={}–{} из {}
 
 table.packages.installation=Установка
 table.packages.actions=Действия
+app_files=Расположение файлов
+launch_command=Команда запуска

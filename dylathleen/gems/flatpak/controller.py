@@ -1,5 +1,6 @@
 import os
 import re
+import shlex
 import traceback
 from datetime import datetime
 from operator import attrgetter
@@ -26,7 +27,7 @@ from dylathleen.gems.flatpak import flatpak, CONFIG_FILE, UPDATES_IGNORED_FILE, 
 from dylathleen.gems.flatpak.config import FlatpakConfigManager
 from dylathleen.gems.flatpak.constants import FLATHUB_API_URL
 from dylathleen.gems.flatpak.model import FlatpakApplication
-from dylathleen.gems.flatpak.inventory import deployments
+from dylathleen.gems.flatpak.inventory import application_files, deployments
 from dylathleen.gems.flatpak.worker import FlatpakAsyncDataLoader
 
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.000Z'
@@ -256,6 +257,11 @@ class FlatpakManager(SoftwareManager, SettingsController):
 
                 if app_info.get('installed'):
                     app_info['installed'] = app_info['installed'].replace('?', ' ')
+
+            if app.can_be_run():
+                args = flatpak.launch_args(app)
+                app_info['launch_command'] = shlex.join(args)
+                app_info['app_files'] = application_files(app.installation, app.ref or app.id)
 
             return app_info
         else:
@@ -550,7 +556,7 @@ class FlatpakManager(SoftwareManager, SettingsController):
         return True
 
     def launch(self, pkg: FlatpakApplication):
-        flatpak.run(str(pkg.id))
+        flatpak.run(pkg)
 
     def get_screenshots(self, pkg: FlatpakApplication) -> Generator[str, None, None]:
         if pkg.origin != 'flathub':

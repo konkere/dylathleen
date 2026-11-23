@@ -2,6 +2,7 @@ import glob
 import json
 import os
 import re
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -25,6 +26,7 @@ from dylathleen.api.abstract.view import MessageType, FormComponent, InputOption
     SelectViewType, TextInputComponent, PanelComponent, FileChooserComponent, ViewObserver
 from dylathleen.api.paths import DESKTOP_ENTRIES_DIR
 from dylathleen.commons import resource
+from dylathleen.commons.installed_files import InstalledFiles
 from dylathleen.commons.boot import CreateConfigFile
 from dylathleen.commons.html import bold
 from dylathleen.commons.system import SystemProcess, new_subprocess, ProcessHandler, SimpleProcess
@@ -561,7 +563,14 @@ class AppImageManager(SoftwareManager, SettingsController):
     def get_info(self, pkg: AppImage) -> dict:
         data = pkg.get_data_to_cache()
 
-        if not pkg.installed:
+        if pkg.installed:
+            directory = pkg.get_disk_cache_path()
+            launcher = self._launch_path(pkg)
+            data['app_files'] = InstalledFiles.collect(directory, launcher, pkg.symlink,
+                                                       self._gen_desktop_entry_path(pkg), pkg.icon_path)
+            if launcher:
+                data['launch_command'] = shlex.quote(launcher)
+        else:
             for key in ('install_dir', 'symlink', 'icon_path'):
                 if key in data:
                     del data[key]
@@ -937,16 +946,23 @@ class AppImageManager(SoftwareManager, SettingsController):
     def is_default_enabled(self) -> bool:
         return True
 
-    def launch(self, pkg: AppImage):
-        installation_dir = pkg.get_disk_cache_path()
-        if os.path.exists(installation_dir):
-            appimag_path = util.find_appimage_file(installation_dir)
+    def _launch_path(self, pkg: AppImage):
+        directory = pkg.get_disk_cache_path()
+        if directory and os.path.isdir(directory):
+            if pkg.symlink:
+                try:
+                    return str(self._installed_image(Path(directory), pkg.symlink))
+                except (OSError, RuntimeError, ValueError):
+                    pass  # Older installations can have a stale command symlink.
+            return util.find_appimage_file(directory)
 
-            if appimag_path:
-                subprocess.Popen(args=[appimag_path], env={**os.environ},
-                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
-            else:
-                self.logger.error(f"Could not find the AppImage file of '{pkg.name}' in '{installation_dir}'")
+    def launch(self, pkg: AppImage):
+        path = self._launch_path(pkg)
+        if path:
+            subprocess.Popen(args=[path], env={**os.environ},
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        else:
+            self.logger.error("Could not find the installed AppImage for %s", pkg.name)
 
     def cache_to_disk(self, pkg: SoftwarePackage, icon_bytes: Optional[bytes], only_icon: bool):
         with replacement.installation_lock(INSTALLATION_DIR, DESKTOP_ENTRIES_DIR):

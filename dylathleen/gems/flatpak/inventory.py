@@ -1,9 +1,14 @@
 """Read deployment state and the matching remote's update set (Flatpak 1.12+)."""
+import configparser
 import logging
 import os
 import subprocess
-from packaging.version import InvalidVersion, Version
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+from packaging.version import InvalidVersion, Version
+
+from dylathleen.commons.installed_files import InstalledFiles
 
 
 def _read(*args):
@@ -11,6 +16,33 @@ def _read(*args):
                             capture_output=True, text=True, timeout=60,
                             env={**os.environ, 'LC_ALL': 'C.UTF-8'}, check=True)
     return result.stdout
+
+
+def application_files(scope, ref):
+    try:
+        path = _read('info', '--' + scope, '--show-location', ref).strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        logging.getLogger(__name__).warning('Flatpak location (%s): %s', ref, exc)
+        return None
+    if not os.path.isabs(path):
+        return None
+
+    deployment = Path(path)
+    metadata = configparser.ConfigParser(interpolation=None, strict=False)
+    launcher = None
+    try:
+        metadata.read(deployment / 'metadata', encoding='utf-8')
+        command = metadata.get('Application', 'command', fallback='')
+        if command.startswith('/app/'):
+            launcher = deployment / 'files' / command.removeprefix('/app/')
+        elif command and '/' not in command:
+            launcher = deployment / 'files/bin' / command
+    except (OSError, UnicodeError, configparser.Error) as exc:
+        logging.getLogger(__name__).warning('Flatpak metadata (%s): %s', ref, exc)
+    if not launcher or not launcher.is_file():
+        app_id = ref.removeprefix('app/').split('/')[0]
+        launcher = deployment / 'export/bin' / app_id
+    return InstalledFiles.collect(deployment, launcher)
 
 
 def _updates(scope):

@@ -3,6 +3,7 @@ import json
 import locale
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import traceback
@@ -28,6 +29,7 @@ from dylathleen.api.abstract.view import MessageType, MultipleSelectComponent, I
     SelectViewType, TextInputComponent, FormComponent, FileChooserComponent, PanelComponent, ViewComponentAlignment
 from dylathleen.api.paths import DESKTOP_ENTRIES_DIR
 from dylathleen.commons import resource
+from dylathleen.commons.installed_files import InstalledFiles
 from dylathleen.commons.boot import CreateConfigFile
 from dylathleen.commons.html import bold
 from dylathleen.commons.system import ProcessHandler, get_dir_size, SimpleProcess
@@ -478,10 +480,14 @@ class WebApplicationManager(SoftwareManager, SettingsController):
         if pkg.installed:
             info = {'0{}_{}'.format(idx + 1, att): getattr(pkg, att) for idx, att in
                     enumerate(('url', 'description', 'version', 'categories', 'installation_dir', 'desktop_entry'))}
-            info['07_exec_file'] = pkg.get_exec_path()
+            launcher = pkg.get_exec_path()
+            info['app_files'] = InstalledFiles.collect(pkg.installation_dir, launcher, pkg.desktop_entry,
+                                                       pkg.get_disk_icon_path(), pkg.get_autostart_path())
+            if launcher:
+                info['launch_command'] = shlex.join(self._launch_args(pkg))
             info['08_icon_path'] = pkg.get_disk_icon_path()
 
-            if os.path.exists(pkg.installation_dir):
+            if pkg.installation_dir and os.path.exists(pkg.installation_dir):
                 info['09_size'] = get_human_size_str(get_dir_size(pkg.installation_dir))
 
             config_dir = pkg.get_config_dir()
@@ -1144,8 +1150,12 @@ class WebApplicationManager(SoftwareManager, SettingsController):
     def is_default_enabled(self) -> bool:
         return True
 
+    @staticmethod
+    def _launch_args(pkg: WebApplication):
+        return [pkg.get_exec_path(), *(['--no-sandbox'] if user.is_root() else [])]
+
     def launch(self, pkg: WebApplication):
-        subprocess.Popen([pkg.get_exec_path(), *(['--no-sandbox'] if user.is_root() else [])])
+        subprocess.Popen(self._launch_args(pkg))
 
     def clear_data(self, logs: bool = True):
         if os.path.exists(ENV_PATH):

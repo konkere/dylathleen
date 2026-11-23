@@ -553,3 +553,5 @@ pagination.range={}–{} of {}
 
 table.packages.installation=Install
 table.packages.actions=Actions
+app_files=File location
+launch_command=Launch command

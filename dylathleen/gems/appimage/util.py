@@ -10,7 +10,7 @@ def find_appimage_file(folder: str) -> Optional[str]:
     for r, d, files in os.walk(folder):
         for f in files:
             if f.lower().endswith('.appimage'):
-                return f'{folder}/{f}'
+                return os.path.join(r, f)
 
 
 def replace_desktop_entry_exec_command(desktop_entry: str, appname: str, file_path: str) -> str:

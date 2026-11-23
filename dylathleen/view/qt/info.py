@@ -1,4 +1,3 @@
-import shutil
 import subprocess
 from collections.abc import Iterable
 from subprocess import Popen
@@ -11,6 +10,7 @@ from PyQt5.QtWidgets import QDialog, QVBoxLayout, QGroupBox, \
     QHBoxLayout
 
 from dylathleen.api.abstract.cache import MemoryCache
+from dylathleen.commons.installed_files import InstalledFiles
 from dylathleen.commons.regex import RE_URL
 from dylathleen.view.qt.components import new_spacer
 from dylathleen.view.qt.qt_utils import get_current_screen_geometry
@@ -63,7 +63,11 @@ class InfoDialog(QDialog):
                 i18n_key = pkg_info['__app__'].model.gem_name + '.info.' + attr.lower()
                 val = pkg_info[attr]
 
-                if not isinstance(val, str) and isinstance(pkg_info[attr], Iterable):
+                is_file_list = isinstance(val, InstalledFiles)
+                if is_file_list:
+                    show_val = '\n'.join(val.paths)
+                    val = val.location
+                elif not isinstance(val, str) and isinstance(pkg_info[attr], Iterable):
                     val = ' '.join([str(e).strip() for e in pkg_info[attr] if e])
                     show_val = '\n'.join(['* ' + str(e).strip() for e in pkg_info[attr] if e])
                 else:
@@ -78,7 +82,7 @@ class InfoDialog(QDialog):
 
                 text = QLineEdit()
                 text.setObjectName('field_value')
-                text.setToolTip(show_val)
+                text.setToolTip(val if is_file_list else show_val)
                 text.setText(val)
                 text.setCursorPosition(0)
                 text.setReadOnly(True)

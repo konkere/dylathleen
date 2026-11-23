@@ -1,4 +1,5 @@
 import re
+import shlex
 import time
 import traceback
 from threading import Thread
@@ -148,9 +149,12 @@ class SnapManager(SoftwareManager, SettingsController):
         }
 
         if pkg.installed:
-            commands = [*{c['name'] for c in SnapdClient(self.logger).list_commands(pkg.name)}]
-            commands.sort()
-            info['commands'] = commands
+            commands = SnapdClient(self.logger).list_commands(pkg.name)
+            info['commands'] = sorted({c['name'] for c in commands})
+            selected = snap.launch_args(pkg.name, commands)
+            if selected:
+                info['launch_command'] = shlex.join(selected)
+                info['app_files'] = snap.application_files(pkg.name, selected[-1], commands)
 
             if pkg.installed_size:
                 info['installed_size']: get_human_size_str(pkg.installed_size)
@@ -453,19 +457,10 @@ class SnapManager(SoftwareManager, SettingsController):
     def launch(self, pkg: SnapApplication):
         commands = SnapdClient(self.logger).list_commands(pkg.name)
 
-        if commands:
-            if len(commands) == 1:
-                cmd = commands[0]['name']
-            else:
-                desktop_cmd = [c for c in commands if 'desktop-file' in c]
-
-                if desktop_cmd:
-                    cmd = desktop_cmd[0]['name']
-                else:
-                    cmd = commands[0]['name']
-
-            self.logger.info(f"Running '{pkg.name}': {cmd}")
-            snap.run(cmd)
+        args = snap.launch_args(pkg.name, commands)
+        if args:
+            self.logger.info("Running %s: %s", pkg.name, shlex.join(args))
+            snap.run(args)
 
     def get_screenshots(self, pkg: SnapApplication) -> Generator[str, None, None]:
         if pkg.screenshots:
