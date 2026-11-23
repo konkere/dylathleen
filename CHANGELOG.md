@@ -1,3 +1,9 @@
+# Dylath-Leen 0.3.1 — 2026-11-23
+
+- **Find installed files and launch commands.** The information dialog shows the launcher path and a copyable command for installed Flatpak, Snap, AppImage and Web Apps. Use the eye button to see the full file list.
+- **Copy information with one click.** Use the copy icon beside a field to copy its displayed value. In the expanded view, **Copy and close** copies the entire field and closes the dialog.
+- **Handle Flathub metadata timeouts quietly.** The background loader makes one attempt per app and keeps local details available if the request times out. With logging enabled, a short warning replaces the traceback.
+
 # Dylath-Leen 0.3.0 — 2026-11-22
 
 - **Keep the working AppImage if a version change fails.** Upgrades, downgrades and manual updates validate the replacement before switching executables. The existing command symlink keeps its target, and interrupted changes to the desktop launcher, icon and package metadata are recovered the next time the manager accesses the installation. Related upstream report of AppImage file loss: [bauh #320](https://github.com/vinifmor/bauh/issues/320).
