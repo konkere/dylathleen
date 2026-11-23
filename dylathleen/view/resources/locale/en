@@ -435,6 +435,7 @@ manage_window.columns.installed=Installed
 manage_window.columns.latest_version=Latest Version
 manage_window.columns.update=Upgrade?
 manage_window.info.no_info=There is no information available for {}
+manage_window.info.copy_close=Copy and close
 manage_window.info.open_url=Open
 manage_window.label.apps_displayed.tip=Visible range and number of matching results
 manage_window.label.updates=Updates

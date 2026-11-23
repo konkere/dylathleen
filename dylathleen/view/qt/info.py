@@ -1,11 +1,10 @@
 import subprocess
 from collections.abc import Iterable
 from subprocess import Popen
-from typing import Optional
 
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QCursor
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QGroupBox, \
+from PyQt5.QtWidgets import QApplication, QToolButton, QDialog, QVBoxLayout, QGroupBox, \
     QLineEdit, QLabel, QGridLayout, QPushButton, QPlainTextEdit, QScrollArea, QFrame, QWidget, QSizePolicy, \
     QHBoxLayout
 
@@ -14,6 +13,7 @@ from dylathleen.commons.installed_files import InstalledFiles
 from dylathleen.commons.regex import RE_URL
 from dylathleen.view.qt.components import new_spacer
 from dylathleen.view.qt.qt_utils import get_current_screen_geometry
+from dylathleen.view.util import resource
 from dylathleen.view.util.translation import I18n
 
 IGNORED_ATTRS = {'name', '__app__'}
@@ -58,6 +58,9 @@ class InfoDialog(QDialog):
         #     self.setWindowIcon(icon_data.get('icon'))
         self.setWindowIcon(QIcon(pkg_info['__app__'].model.get_type_icon_path()))
 
+        self.show_icon = QIcon(resource.get_path('img/show-field.svg'))
+        self.copy_icon = QIcon(resource.get_path('img/copy-field.svg'))
+
         for idx, attr in enumerate(sorted(pkg_info.keys())):
             if attr not in IGNORED_ATTRS and pkg_info[attr] is not None:
                 i18n_key = pkg_info['__app__'].model.gem_name + '.info.' + attr.lower()
@@ -93,7 +96,7 @@ class InfoDialog(QDialog):
                 self.gbox_info.layout().addWidget(label, idx, 0)
                 self.gbox_info.layout().addWidget(text, idx, 1)
 
-                self._gen_show_button(idx=idx, val=show_val)
+                self._add_field_actions(idx, label.text(), val, show_val)
 
         layout.addWidget(scroll)
 
@@ -110,6 +113,12 @@ class InfoDialog(QDialog):
 
         lower_container.layout().addWidget(self.bt_back)
         lower_container.layout().addWidget(new_spacer())
+
+        self.bt_copy_close = QPushButton(self.copy_icon, self.i18n['manage_window.info.copy_close'])
+        self.bt_copy_close.setCursor(Qt.PointingHandCursor)
+        self.bt_copy_close.clicked.connect(self._copy_and_close)
+        self.bt_copy_close.hide()
+        lower_container.layout().addWidget(self.bt_copy_close)
 
         self.bt_close = QPushButton(self.i18n['close'].capitalize())
         self.bt_close.setObjectName('close')
@@ -131,32 +140,41 @@ class InfoDialog(QDialog):
     def _show_full_field_val(self, val: str):
         self.gbox_info.hide()
         self.bt_back.setVisible(True)
+        self.bt_copy_close.show()
         self.text_field.show()
         self.text_field.setPlainText(val)
 
-    def _gen_show_button(self, idx: int, val: str):
+    @staticmethod
+    def _icon_button(icon: QIcon, action: str, field: str):
+        button = QToolButton()
+        button.setIcon(icon)
+        button.setToolTip(action)
+        button.setAccessibleName(f'{action} — {field}')
+        button.setCursor(Qt.PointingHandCursor)
+        return button
 
-        is_url = self._can_open_url and bool(RE_URL.match(val)) if val else False
-
-        if is_url:
-            bt_label = self.i18n["manage_window.info.open_url"]
-
-            def _show_field():
-                self.open_url(val)
+    def _add_field_actions(self, row: int, label: str, value: str, full_value: str):
+        if self._can_open_url and RE_URL.match(full_value):
+            show = QPushButton(self.i18n['manage_window.info.open_url'])
+            show.setCursor(Qt.PointingHandCursor)
+            show.clicked.connect(lambda: self.open_url(full_value))
         else:
-            bt_label = self.i18n["show"].capitalize()
+            show = self._icon_button(self.show_icon, self.i18n['show'].capitalize(), label)
+            show.clicked.connect(lambda: self._show_full_field_val(full_value))
+        show.setObjectName('show')
 
-            def _show_field():
-                self._show_full_field_val(val)
+        copy = self._icon_button(self.copy_icon, self.i18n['copy'].capitalize(), label)
+        copy.clicked.connect(lambda: QApplication.clipboard().setText(value))
+        self.gbox_info.layout().addWidget(show, row, 2, Qt.AlignRight)
+        self.gbox_info.layout().addWidget(copy, row, 3)
 
-        bt_full_field = QPushButton(bt_label)
-        bt_full_field.setObjectName("show")
-        bt_full_field.setCursor(QCursor(Qt.PointingHandCursor))
-        bt_full_field.clicked.connect(_show_field)
-        self.gbox_info.layout().addWidget(bt_full_field, idx, 2)
+    def _copy_and_close(self):
+        QApplication.clipboard().setText(self.text_field.toPlainText())
+        self.close()
 
     def back_to_info(self):
         self.text_field.setPlainText("")
         self.text_field.hide()
         self.gbox_info.show()
         self.bt_back.setVisible(False)
+        self.bt_copy_close.hide()
