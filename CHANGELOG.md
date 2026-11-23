@@ -1,3 +1,8 @@
+# Dylath-Leen 0.3.2 — 2026-11-23
+
+- **See Flatpak download limits before updating.** The upgrade summary uses `≤` for the upper estimates reported by Flatpak. Related runtimes and extensions resolved by Flatpak are included in the preview.
+- **Distinguish missing estimates from zero.** The download total shows how many items have an estimate when coverage is partial. The summary marks an unavailable disk space change as unknown.
+
 # Dylath-Leen 0.3.1 — 2026-11-23
 
 - **Find installed files and launch commands.** The information dialog shows the launcher path and a copyable command for installed Flatpak, Snap, AppImage and Web Apps. Use the eye button to see the full file list.
