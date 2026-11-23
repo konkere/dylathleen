@@ -1,3 +1,14 @@
+
+                             Dylath-Leen
+                       A modified fork of bauh
+
+                      Copyright (c) 2026 Konkere
+                         (fork modifications)
+
+Fork modifications are distributed under the same zlib/libpng license.
+The original author's copyright and license notice are preserved below.
+
+
                   Copyright (c) 2019 Vinícius Moreira
 
                           zlib/libpng license
@@ -19,6 +30,3 @@ freely, subject to the following restrictions:
   be misrepresented as being the original software.
 
 – This notice may not be removed or altered from any source distribution.
-
-Dylath-Leen is a modified fork of bauh.
-Copyright (c) 2026 Konkere. Fork changes are distributed under the same Zlib license.
