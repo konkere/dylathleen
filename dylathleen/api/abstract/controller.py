@@ -58,7 +58,8 @@ class SearchResult:
 
 class UpgradeRequirement:
 
-    def __init__(self, pkg: SoftwarePackage, reason: Optional[str] = None, required_size: Optional[float] = None, extra_size: Optional[float] = None, sorting_priority: int = 0):
+    def __init__(self, pkg: SoftwarePackage, reason: Optional[str] = None, required_size: Optional[float] = None, extra_size: Optional[float] = None, sorting_priority: int = 0,
+                 download_is_upper_bound: bool = False):
         """
 
         :param pkg:
@@ -69,6 +70,7 @@ class UpgradeRequirement:
         """
         self.pkg = pkg
         self.reason = reason
+        self.download_is_upper_bound = download_is_upper_bound
         self.required_size = required_size
         self.extra_size = extra_size
         self.sorting_priority = sorting_priority
@@ -101,6 +103,7 @@ class UpgradeRequirements:
         self.to_remove = to_remove  # when an upgrading package conflicts with a not upgrading package ( check all the non-upgrading packages deps an add here [including those selected to upgrade as well]
         self.to_upgrade = to_upgrade
         self.cannot_upgrade = cannot_upgrade
+        self.related_downloads: List[UpgradeRequirement] = []  # Preview only, resolved by the package manager
         self.context = {}  # caches relevant data to actually perform the upgrade
 
 

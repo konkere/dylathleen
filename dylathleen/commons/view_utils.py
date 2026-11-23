@@ -19,7 +19,7 @@ def new_select(label: str, tip: Optional[str], id_: str, opts: Iterable[Tuple[Op
                                  capitalize_label=capitalize_label)
 
 
-def get_human_size_str(size, positive_sign: bool = False) -> Optional[str]:
+def get_human_size_str(size, positive_sign: bool = False, round_up: bool = False) -> Optional[str]:
     if type(size) in (int, float, str):
         int_size = abs(int(size))
 
@@ -30,6 +30,9 @@ def get_human_size_str(size, positive_sign: bool = False) -> Optional[str]:
             size_unit = int_size / (1000 ** power)
 
             if size_unit < 1000:
+                if round_up and power:
+                    unit_bytes = 1000 ** power
+                    size_unit = ((int_size * 100 + unit_bytes - 1) // unit_bytes) / 100
                 size_unit = size_unit if size > 0 else size_unit * -1
                 localized_size = locale.format_string('%.2f', size_unit)
                 size_str = f'{int(size_unit)} {unit}' if unit == 'B' else f"{localized_size} {unit}"

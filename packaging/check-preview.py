@@ -6,7 +6,7 @@ from dylathleen.gems.flatpak.model import FlatpakApplication
 from dylathleen.view.qt.apps_table import PackagesTable
 from dylathleen.view.qt.thread import UpgradeSelected
 from dylathleen.view.qt.view_model import PackageView
-from dylathleen.view.util.translation import I18n
+from dylathleen.view.util.translation import I18n, get_locale_keys
 
 app = QApplication([])
 owner = QWidget()
@@ -28,3 +28,16 @@ for installed, target, expected in [
     option = dialog._req_as_option(UpgradeRequirement(pkg), display_sizes=False)
     assert expected in option.label
     print(expected)
+
+# Keep unknown, exact and upper-bound sizes distinct in rows and group totals.
+dialog.i18n = I18n(*get_locale_keys('ru'), *get_locale_keys('en'))
+bounded = UpgradeRequirement(pkg, required_size=1_000_001, download_is_upper_bound=True)
+exact = UpgradeRequirement(pkg, required_size=2_000_000)
+unknown = UpgradeRequirement(pkg)
+assert 'Загрузка: ≤ 1.01 MB' in dialog._req_as_option(bounded).label
+assert dialog._download_label([bounded, exact]) == '≤ 3.01 MB'
+assert dialog._download_label([bounded, unknown]) == '≤ 1.01 MB для 1 из 2'
+assert dialog._download_label([unknown]) == 'неизвестно'
+assert dialog._storage_label([bounded, exact]) == 'неизвестно'
+assert dialog._download_label([UpgradeRequirement(pkg, required_size=0)]) == '0'
+assert 'Количество: 2' in dialog._download_form([bounded, exact], 'action.update.label_to_upgrade').label

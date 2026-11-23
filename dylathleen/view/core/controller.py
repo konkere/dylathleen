@@ -602,6 +602,7 @@ class GenericSoftwareManager(SoftwareManager, SettingsController):
 
                 if man_reqs:
                     res.sub_requirements[man] = man_reqs
+                    res.related_downloads.extend(man_reqs.related_downloads)
                     if man_reqs.to_install:
                         res.to_install.extend(man_reqs.to_install)
 

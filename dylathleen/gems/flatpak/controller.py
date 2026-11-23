@@ -615,8 +615,22 @@ class FlatpakManager(SoftwareManager, SettingsController):
             return False, [traceback.format_exc()]
 
     def get_upgrade_requirements(self, pkgs: List[FlatpakApplication], root_password: Optional[str], watcher: ProcessWatcher) -> UpgradeRequirements:
-        to_update = [UpgradeRequirement(pkg=p, extra_size=0, required_size=p.size) for p in self.sort_update_order(pkgs)]
-        return UpgradeRequirements(None, None, to_update, [])
+        from dylathleen.gems.flatpak.preview import download_bounds
+
+        to_update = [UpgradeRequirement(pkg=p) for p in self.sort_update_order(pkgs)]
+        requirements = UpgradeRequirements(None, None, to_update, [])
+        for scope in {p.installation for p in pkgs}:
+            selected = {req.pkg.ref: req for req in to_update if req.pkg.installation == scope}
+            bounds = download_bounds(scope, [req.pkg for req in selected.values()])
+            for ref, size in bounds.items():
+                req = selected.get(ref)
+                if req is None:
+                    pkg = FlatpakApplication(id=ref, name=ref, ref=ref, installation=scope)
+                    req = UpgradeRequirement(pkg)
+                    requirements.related_downloads.append(req)
+                req.required_size = size
+                req.download_is_upper_bound = size is not None
+        return requirements
 
     def sort_update_order(self, pkgs: List[FlatpakApplication]) -> List[FlatpakApplication]:
         runtimes, apps = set(), set()

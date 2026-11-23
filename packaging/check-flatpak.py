@@ -67,6 +67,10 @@ with TemporaryDirectory() as temp:
     print(gimp.update_version_label(labels), plex.update_version_label(labels), flush=True)
     watcher = Mock()
     plan = manager.get_upgrade_requirements([gimp, plex], None, watcher)
+    assert all(req.download_is_upper_bound and req.required_size > 0 and req.extra_size is None
+               for req in plan.to_upgrade), [vars(req) for req in plan.to_upgrade]
+    before_confirmation = manager.read_installed(None, internet_available=False).installed
+    assert {pkg.id: pkg.commit for pkg in before_confirmation} == {key: pkg.commit for key, pkg in models.items()}
     assert manager.upgrade(plan, None, watcher)
     refreshed = manager.read_installed(None, internet_available=True).installed
     assert not any(pkg.update for pkg in refreshed)
