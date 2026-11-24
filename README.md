@@ -1,6 +1,4 @@
-# Dylath-Leen
-
-A harbor for Linux applications.
+![Dylath-Leen - A harbor for Linux applications](/.github/img/dylathleen-preview.png)
 
 [Русская версия](README.ru.md) · [Changes](CHANGELOG.md)
 
