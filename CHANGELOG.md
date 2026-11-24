@@ -1,3 +1,8 @@
+# Dylath-Leen 0.3.3 — 2026-11-24
+
+- Removed the Web Apps manager and its Nativefier toolchain. Existing web application files and desktop entries are left in place when upgrading.
+- Removed the unused Arch Linux backend for pacman and AUR from the source tree, along with its tests. Earlier DEB packages already excluded this backend. The package now drops its dependency on `python3-dateutil`.
+
 # Dylath-Leen 0.3.2 — 2026-11-23
 
 - **See Flatpak download limits before updating.** The upgrade summary uses `≤` for the upper estimates reported by Flatpak. Related runtimes and extensions resolved by Flatpak are included in the preview.

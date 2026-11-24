@@ -30,9 +30,6 @@ class SelfFileDownloader(FileDownloader):
         self._client = http_client
         self._ssl = check_ssl
 
-    def is_multithreaded(self) -> bool:
-        return False
-
     def can_work(self) -> bool:
         return True
 
@@ -285,9 +282,6 @@ class AdaptableFileDownloader(FileDownloader):
             self._rm_bad_file(file_name, output_path, final_cwd, handler, root_password)
 
         return success
-
-    def is_multithreaded(self) -> bool:
-        return bool(self.get_available_multithreaded_tool())
 
     def get_available_multithreaded_tool(self) -> str:
         if self.multithread_enabled:

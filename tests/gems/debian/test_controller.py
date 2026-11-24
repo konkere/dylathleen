@@ -2,7 +2,6 @@ from unittest import TestCase
 from unittest.mock import MagicMock, patch, Mock
 
 from dylathleen import __app_name__
-from dylathleen.api.abstract.controller import SearchResult
 from dylathleen.gems.debian.controller import DebianPackageManager
 from dylathleen.gems.debian.model import DebianPackage, DebianApplication
 
@@ -69,13 +68,6 @@ class DebianPackageManagerTest(TestCase):
 
         self.assertEqual(expected, result.installed)
 
-    @patch(f'{__app_name__}.gems.debian.controller.Aptitude.read_installed')
-    def test_search__must_return_empty_result_when_url(self, read_installed: Mock):
-        words = 'i'
-        res = self.controller.search(words=words, disk_loader=None, limit=-1, is_url=True)
-        read_installed.assert_not_called()
-        self.assertEqual(SearchResult.empty(), res)
-
     @patch(f'{__app_name__}.gems.debian.controller.Aptitude.search', return_value=iter((
         DebianPackage(name='xpto', version='1.0', latest_version='1.0', installed=True, update=False, description=''),
         DebianPackage(name='test', version='1.0', latest_version='1.0', installed=False, update=False, description=''),
@@ -87,7 +79,7 @@ class DebianPackageManagerTest(TestCase):
         self.controller._apps_index = {'myapp': app}
 
         words = 'test'
-        res = self.controller.search(words=words, disk_loader=None, limit=-1, is_url=False)
+        res = self.controller.search(words=words, disk_loader=None, limit=-1)
         search.assert_called_once_with(words)
 
         self.assertEqual([DebianPackage(name='xpto', version='1.0', latest_version='1.0', installed=True, update=False, description=''),

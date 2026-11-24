@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Name=Dylath-Leen Tray
-Comment=Manage Flatpak, Snap, AppImage and Web Apps
-Comment[ru]=Управление приложениями Flatpak, Snap, AppImage и Web Apps
+Comment=Manage Flatpak, Snap and AppImage
+Comment[ru]=Управление приложениями Flatpak, Snap и AppImage
 Exec=dylathleen-tray
 Icon=dylathleen
 Categories=System;PackageManager;

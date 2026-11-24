@@ -30,38 +30,3 @@ def normalize_version(version: str) -> Tuple[int, Tuple[str, ...], int]:
         raw_version = f"0.{raw_version}"
 
     return epoch, map_str_version(raw_version), release
-
-
-def match_required_version(current_version: str, operator: str, required_version: str) -> bool:
-    final_required, final_current = required_version.strip(), current_version.strip()
-
-    required_has_epoch = bool(RE_VERSION_WITH_EPOCH.match(final_required))
-    current_no_epoch = RE_VERSION_WITH_EPOCH.split(final_current)
-    current_has_epoch = len(current_no_epoch) > 1
-
-    if required_has_epoch and not current_has_epoch:
-        final_current = f'0:{final_current}'
-    elif current_has_epoch and not required_has_epoch:
-        final_current = current_no_epoch[1]
-
-    required_has_release = bool(RE_VERSION_WITH_RELEASE.match(final_required))
-    current_no_release = RE_VERSION_WITH_RELEASE.split(final_current)
-    current_has_release = len(current_no_release) > 1
-
-    if required_has_release and not current_has_release:
-        final_current = f'{final_current}-1'
-    elif current_has_release and not required_has_release:
-        final_current = current_no_release[1]
-
-    final_required, final_current = map_str_version(final_required), map_str_version(final_current)
-
-    if operator == '==' or operator == '=':
-        return final_current == final_required
-    elif operator == '>':
-        return final_current > final_required
-    elif operator == '>=':
-        return final_current >= final_required
-    elif operator == '<':
-        return final_current < final_required
-    elif operator == '<=':
-        return final_current <= final_required

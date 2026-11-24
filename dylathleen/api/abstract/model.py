@@ -296,10 +296,6 @@ class PackageHistory:
         self.history = history
         self.pkg_status_idx = pkg_status_idx
 
-    @classmethod
-    def empyt(cls, pkg: SoftwarePackage):
-        return cls(pkg=pkg, history=[], pkg_status_idx=-1)
-
 
 class SuggestionPriority(Enum):
     LOW = 0

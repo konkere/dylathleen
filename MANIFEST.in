@@ -9,5 +9,4 @@ recursive-exclude linux_dist *
 recursive-exclude venv *
 recursive-exclude .venv *
 
-prune dylathleen/gems/arch
 prune dylathleen/gems/debian

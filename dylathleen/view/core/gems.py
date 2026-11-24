@@ -14,7 +14,6 @@ SUPPORTED = {
     'appimage': 'AppImageManager',
     'flatpak': 'FlatpakManager',
     'snap': 'SnapManager',
-    'web': 'WebApplicationManager',
 }
 
 

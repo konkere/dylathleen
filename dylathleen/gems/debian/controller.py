@@ -58,24 +58,23 @@ class DebianPackageManager(SoftwareManager, SettingsController):
     def _update_apps_index(self, apps: Iterable[DebianApplication]):
         self._apps_index = {app.name: app for app in apps} if apps else dict()
 
-    def search(self, words: str, disk_loader: Optional[DiskCacheLoader], limit: int, is_url: bool) -> SearchResult:
+    def search(self, words: str, disk_loader: Optional[DiskCacheLoader], limit: int) -> SearchResult:
         config_ = dict()
         fill_config = Thread(target=self._fill_config, args=(config_,), daemon=True)
         fill_config.start()
 
         res = SearchResult.empty()
 
-        if not is_url:
-            for pkg in self.aptitude.search(words):
-                if fill_config.is_alive():
-                    fill_config.join()
+        for pkg in self.aptitude.search(words):
+            if fill_config.is_alive():
+                fill_config.join()
 
-                pkg.global_purge = bool(config_.get('remove.purge', False))
-                if pkg.installed:
-                    pkg.bind_app(self.apps_index.get(pkg.name))
-                    res.installed.append(pkg)
-                else:
-                    res.new.append(pkg)
+            pkg.global_purge = bool(config_.get('remove.purge', False))
+            if pkg.installed:
+                pkg.bind_app(self.apps_index.get(pkg.name))
+                res.installed.append(pkg)
+            else:
+                res.new.append(pkg)
 
         return res
 

@@ -167,12 +167,11 @@ class SoftwareManager(ABC):
         self.context = context
 
     @abstractmethod
-    def search(self, words: str, disk_loader: Optional[DiskCacheLoader], limit: int, is_url: bool) -> SearchResult:
+    def search(self, words: str, disk_loader: Optional[DiskCacheLoader], limit: int) -> SearchResult:
         """
         :param words: the words typed by the user
         :param disk_loader: a running disk loader thread that loads package data from the disk asynchronously
         :param limit: the max number of packages to be retrieved. <= 1 should retrieve everything
-        :param is_url: if "words" is a URL
         :return:
         """
         pass

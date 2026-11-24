@@ -140,16 +140,16 @@ class GenericSoftwareManager(SoftwareManager, SettingsController):
 
         return available
 
-    def _search(self, word: str, is_url: bool, man: SoftwareManager, disk_loader, res: SearchResult):
+    def _search(self, word: str, man: SoftwareManager, disk_loader, res: SearchResult):
         mti = time.time()
-        apps_found = man.search(words=word, disk_loader=disk_loader, is_url=is_url, limit=-1)
+        apps_found = man.search(words=word, disk_loader=disk_loader, limit=-1)
         mtf = time.time()
         self.logger.info(f'{man.__class__.__name__} took {mtf - mti:.8f} seconds')
 
         res.installed.extend(apps_found.installed)
         res.new.extend(apps_found.new)
 
-    def search(self, words: str, disk_loader: DiskCacheLoader = None, limit: int = -1, is_url: bool = False) -> SearchResult:
+    def search(self, words: str, disk_loader: DiskCacheLoader = None, limit: int = -1) -> SearchResult:
         ti = time.time()
         self._wait_to_be_ready()
 
@@ -159,8 +159,7 @@ class GenericSoftwareManager(SoftwareManager, SettingsController):
             norm_query = sanitize_command_input(words).lower()
             self.logger.info(f"Search query: {norm_query}")
 
-            if norm_query:
-                is_url = bool(RE_URL.match(norm_query))
+            if norm_query and not RE_URL.match(norm_query):
                 disk_loader = self.disk_loader_factory.new()
                 disk_loader.start()
 
@@ -168,7 +167,7 @@ class GenericSoftwareManager(SoftwareManager, SettingsController):
 
                 for man in self.managers:
                     if self._can_work(man):
-                        t = Thread(target=self._search, args=(norm_query, is_url, man, disk_loader, res), daemon=True)
+                        t = Thread(target=self._search, args=(norm_query, man, disk_loader, res), daemon=True)
                         t.start()
                         threads.append(t)
 

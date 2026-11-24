@@ -1,7 +1,6 @@
 import logging
 import re
 from abc import ABC
-from datetime import datetime
 from logging import Logger
 from typing import Optional, Union
 
@@ -64,10 +63,6 @@ def size_to_byte(size: Union[float, int, str], unit: str, logger: Optional[Logge
         return final_size * (base ** 4)
     else:
         return final_size * (base ** 5)
-
-
-def datetime_as_milis(date: datetime = datetime.utcnow()) -> int:
-    return int(round(date.timestamp() * 1000))
 
 
 def map_timestamp_file(file_path: str) -> str:

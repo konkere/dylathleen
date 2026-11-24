@@ -84,24 +84,21 @@ class SimpleProcess:
                  global_interpreter: bool = USE_GLOBAL_INTERPRETER, lang: Optional[str] = DEFAULT_LANG, root_password: Optional[str] = None,
                  extra_paths: Set[str] = None, error_phrases: Set[str] = None, wrong_error_phrases: Set[str] = None,
                  shell: bool = False, success_phrases: Set[str] = None, extra_env: Optional[Dict[str, str]] = None,
-                 custom_user: Optional[str] = None, preserve_env: Optional[Set] = None):
+                 preserve_env: Optional[Set] = None):
         final_cmd = []
 
         self.shell = shell
 
-        if custom_user:
-            final_cmd.extend(['runuser', '-u', custom_user, '--'])
-        elif isinstance(root_password, str):
+        if isinstance(root_password, str):
             final_cmd.extend(['sudo', '-S'])
 
             if preserve_env:
                 for var in preserve_env:
                     final_cmd.append(f'--preserve-env={var}')
 
-
         final_cmd.extend(cmd)
 
-        with password_input(root_password if not custom_user else None) as pwdin:
+        with password_input(root_password) as pwdin:
             self.instance = self._new(final_cmd, cwd, global_interpreter, lang=lang, stdin=pwdin,
                                   extra_paths=extra_paths, extra_env=extra_env)
         self.expected_code = expected_code
@@ -263,7 +260,7 @@ class ProcessHandler:
 
 def run_cmd(cmd: str, expected_code: int = 0, ignore_return_code: bool = False, print_error: bool = True,
             cwd: str = '.', global_interpreter: bool = USE_GLOBAL_INTERPRETER, extra_paths: Set[str] = None,
-            custom_user: Optional[str] = None, lang: Optional[str] = DEFAULT_LANG) -> Optional[str]:
+            lang: Optional[str] = DEFAULT_LANG) -> Optional[str]:
     """
     runs a given command and returns its default output
     :return:
@@ -278,8 +275,7 @@ def run_cmd(cmd: str, expected_code: int = 0, ignore_return_code: bool = False, 
     if not print_error:
         args["stderr"] = subprocess.DEVNULL
 
-    final_cmd = f"runuser -u {custom_user} -- {cmd}" if custom_user else cmd
-    res = subprocess.run(final_cmd, **args)
+    res = subprocess.run(cmd, **args)
 
     if ignore_return_code or res.returncode == expected_code:
         try:
@@ -290,7 +286,7 @@ def run_cmd(cmd: str, expected_code: int = 0, ignore_return_code: bool = False, 
 
 def new_subprocess(cmd: Iterable[str], cwd: str = '.', shell: bool = False, stdin: Optional[Union[None, int, IO[Any]]] = None,
                    global_interpreter: bool = USE_GLOBAL_INTERPRETER, lang: Optional[str] = DEFAULT_LANG,
-                   extra_paths: Set[str] = None, custom_user: Optional[str] = None) -> subprocess.Popen:
+                   extra_paths: Set[str] = None) -> subprocess.Popen:
     args = {
         "stdout": PIPE,
         "stderr": PIPE,
@@ -300,8 +296,7 @@ def new_subprocess(cmd: Iterable[str], cwd: str = '.', shell: bool = False, stdi
         "stdin": stdin if stdin else subprocess.DEVNULL
     }
 
-    final_cmd = ['runuser', '-u', custom_user, '--', *cmd] if custom_user else cmd
-    return subprocess.Popen(final_cmd, **args)
+    return subprocess.Popen(cmd, **args)
 
 
 def new_root_subprocess(cmd: Iterable[str], root_password: Optional[str], cwd: str = '.',
@@ -329,58 +324,11 @@ def notify_user(msg: str, app_name: str, icon_path: str):
         pass
 
 
-
-def get_dir_size(start_path='.'):
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(start_path):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-
-            if not os.path.islink(fp):
-                total_size += os.path.getsize(fp)
-
-    return total_size
-
-
-def run(cmd: List[str], success_code: int = 0, custom_user: Optional[str] = None) -> Tuple[bool, str]:
-    final_cmd = ['runuser', '-u', custom_user, '--', *cmd] if custom_user else cmd
-    p = subprocess.run(final_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
-
-    try:
-        output = p.stdout.decode()
-    except UnicodeDecodeError:
-        output = ''
-
-    return p.returncode == success_code, output
-
-
-def check_active_services(*names: str) -> Dict[str, bool]:
-    output = run_cmd('systemctl is-active {}'.format(' '.join(names)), print_error=False)
-
-    if not output:
-        return {n: False for n in names}
-    else:
-        status = output.split('\n')
-        return {s: status[i].strip().lower() == 'active' for i, s in enumerate(names) if s}
-
-
-def check_enabled_services(*names: str) -> Dict[str, bool]:
-    output = run_cmd('systemctl is-enabled {}'.format(' '.join(names)), print_error=False)
-
-    if not output:
-        return {n: False for n in names}
-    else:
-        status = output.split('\n')
-        return {s: status[i].strip().lower() == 'enabled' for i, s in enumerate(names) if s}
-
-
 def execute(cmd: str, shell: bool = False, cwd: Optional[str] = None, output: bool = True, custom_env: Optional[dict] = None,
-            stdin: bool = True, custom_user: Optional[str] = None) -> Tuple[int, Optional[str]]:
-
-    final_cmd = f"runuser -u {custom_user} -- {cmd}" if custom_user else cmd
+            stdin: bool = True) -> Tuple[int, Optional[str]]:
 
     params = {
-        'args': final_cmd.split(' ') if not shell else [final_cmd],
+        'args': cmd.split(' ') if not shell else [cmd],
         'stdout': subprocess.PIPE if output else subprocess.DEVNULL,
         'stderr': subprocess.STDOUT if output else subprocess.DEVNULL,
         'shell': shell

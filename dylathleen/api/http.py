@@ -4,7 +4,6 @@ import traceback
 from typing import Optional
 
 import requests
-import yaml
 
 from dylathleen.commons import system
 from dylathleen.commons.view_utils import get_human_size_str
@@ -75,10 +74,6 @@ class HttpClient:
     def get_json(self, url: str, params: dict = None, headers: dict = None, allow_redirects: bool = True, session: bool = True):
         res = self.get(url, params=params, headers=headers, allow_redirects=allow_redirects, session=session)
         return res.json() if res else None
-
-    def get_yaml(self, url: str, params: dict = None, headers: dict = None, allow_redirects: bool = True, session: bool = True):
-        res = self.get(url, params=params, headers=headers, allow_redirects=allow_redirects, session=session)
-        return yaml.safe_load(res.text) if res else None
 
     def get_content_length_in_bytes(self, url: str, session: bool = True) -> Optional[int]:
         if not url:

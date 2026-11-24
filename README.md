@@ -2,13 +2,13 @@
 
 [Русская версия](README.ru.md) · [Changes](CHANGELOG.md)
 
-Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinifmor/bauh) by Vinícius Moreira. Its native Python / Qt 5 desktop manages Flatpak, Snap, AppImage and Web Apps. APT, dpkg, pacman and AUR are outside its catalogue.
+Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinifmor/bauh) by Vinícius Moreira. Its native Python / Qt 5 desktop manages Flatpak, Snap and AppImage. APT and dpkg are outside its catalogue.
 
 ## Install and run
 
-From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.3.2-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
+From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.3.3-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
 
-Refresh to list installed software, search by name, select updates and review the confirmation before applying them. Use `dylathleen --offline` for local inventory, `dylathleen --settings` for format settings and `dylathleen-tray` for notifications. System Flatpak transactions use the system's authorization policy. Snap operations require snapd and may prompt for sudo. Configuration, installed AppImage/Web data and caches use separate dylathleen directories. Existing bauh-managed AppImages and Web Apps are not automatically imported.
+Refresh to list installed software, search by name, select updates and review the confirmation before applying them. Use `dylathleen --offline` for local inventory, `dylathleen --settings` for format settings and `dylathleen-tray` for notifications. System Flatpak transactions use the system's authorization policy. Snap operations require snapd and may prompt for sudo. Configuration, installed AppImage data and caches use separate dylathleen directories. Existing bauh-managed AppImages are not automatically imported.
 
 ## Flatpak updates
 
@@ -16,7 +16,7 @@ The inventory joins installed deployments to the remote update list by user/syst
 
 ## Formats and platform targets
 
-Flatpak 1.12 or newer is required. Configure a Flatpak remote for the desired installation. Snap needs a running snapd. The inherited AppImage backend targets x86-64 and uses upstream catalogues. Web Apps use the inherited Nativefier toolchain, which downloads Node/Electron to wrap a website. The manager itself uses PyQt5. Network services, catalogue availability and desktop authorization affect individual transactions.
+Flatpak 1.12 or newer is required. Configure a Flatpak remote for the desired installation. Snap needs a running snapd. The inherited AppImage backend targets x86-64 and uses upstream catalogues. Network services, catalogue availability and desktop authorization affect individual transactions.
 
 CI targets Ubuntu 22.04, 24.04, 26.04 and Debian 12, 13. Run `/usr/bin/python3 -m unittest discover` with the system dependencies installed. The build accepts SOURCE_DATE_EPOCH and uses a fixed default for repeatable archives. CI produces downloadable build artifacts. See [implementation notes](docs/iteration-1.md) for limitations and outstanding work.
 

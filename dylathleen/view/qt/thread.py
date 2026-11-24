@@ -716,7 +716,7 @@ class SearchPackages(AsyncAction):
 
         if self.word:
             try:
-                res = self.manager.search(words=self.word, disk_loader=None, limit=-1, is_url=False)
+                res = self.manager.search(words=self.word, disk_loader=None, limit=-1)
                 search_res['pkgs_found'] = sort_packages((*(res.installed or ()), *(res.new or ())), self.word)
             except NoInternetException:
                 search_res['error'] = 'internet.required'

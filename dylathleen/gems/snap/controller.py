@@ -62,8 +62,8 @@ class SnapManager(SoftwareManager, SettingsController):
             if 'runtime' not in categories:
                 categories.append('runtime')
 
-    def search(self, words: str, disk_loader: DiskCacheLoader, limit: int = -1, is_url: bool = False) -> SearchResult:
-        if is_url or (not snap.is_installed() and not snapd.is_running()):
+    def search(self, words: str, disk_loader: DiskCacheLoader, limit: int = -1) -> SearchResult:
+        if not snap.is_installed() and not snapd.is_running():
             return SearchResult([], [], 0)
 
         snapd_client = SnapdClient(self.logger)

@@ -11,7 +11,7 @@ from dylathleen.view.core.config import CoreConfigManager
 args = argparse.Namespace(offline=True, suggestions=False, settings=False, reset=False)
 app, panel = new_manage_panel(args, CoreConfigManager().get_config(), logging.getLogger('smoke'))
 formats = {type(m).__module__.split('.')[2] for m in panel.manager.managers}
-assert formats == {'flatpak', 'snap', 'appimage', 'web'}, formats
+assert formats == {'flatpak', 'snap', 'appimage'}, formats
 panel.show()
 
 

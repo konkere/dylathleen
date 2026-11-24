@@ -189,10 +189,7 @@ class AppImageManager(SoftwareManager, SettingsController):
     def _gen_app_key(self, app: AppImage):
         return f"{app.name.lower()}{app.repository.lower() if app.repository else ''}"
 
-    def search(self, words: str, disk_loader: DiskCacheLoader, limit: int = -1, is_url: bool = False) -> SearchResult:
-        if is_url:
-            return SearchResult.empty()
-
+    def search(self, words: str, disk_loader: DiskCacheLoader, limit: int = -1) -> SearchResult:
         apps_conn = self._get_db_connection(DATABASE_APPS_FILE)
 
         if not apps_conn:

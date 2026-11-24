@@ -27,4 +27,3 @@ The way to go here is to ask yourself if the improvement would be useful for mor
 - `dylathleen/gems/appimage/resources/locale`
 - `dylathleen/gems/flatpak/resources/locale`
 - `dylathleen/gems/snap/resources/locale`
-- `dylathleen/gems/web/resources/locale`

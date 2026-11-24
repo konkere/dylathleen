@@ -23,10 +23,6 @@ class FileDownloader(ABC):
         pass
 
     @abstractmethod
-    def is_multithreaded(self) -> bool:
-        pass
-
-    @abstractmethod
     def can_work(self) -> bool:
         pass
 

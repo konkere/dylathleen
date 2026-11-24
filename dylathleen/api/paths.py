@@ -15,6 +15,5 @@ USER_THEMES_DIR = f'/usr/share/{__app_name__}/themes' if user.is_root() else f'{
 DESKTOP_ENTRIES_DIR = '/usr/share/applications' if user.is_root() else f'{Path.home()}/.local/share/applications'
 TEMP_DIR = get_temp_dir(getuser())
 LOGS_DIR = f'{TEMP_DIR}/logs'
-AUTOSTART_DIR = f'/etc/xdg/autostart' if user.is_root() else f'{Path.home()}/.config/autostart'
 BINARIES_DIR = f'/usr/local/bin' if user.is_root() else f'{Path.home()}/.local/bin'
 SHARED_FILES_DIR = f'/usr/local/share/{__app_name__}' if user.is_root() else f'{Path.home()}/.local/share/{__app_name__}'
