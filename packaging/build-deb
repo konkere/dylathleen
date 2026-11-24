@@ -9,7 +9,7 @@ export SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH:-1795132800}
 install -Dm644 packaging/control "$stage/DEBIAN/control"
 lib="$stage/usr/lib/dylathleen"
 mkdir -p "$lib" "$stage/usr/bin" "$output_dir"
-tar --exclude='__pycache__' --exclude='*.pyc' --exclude='dylathleen/gems/debian' -cf "$stage/code.tar" dylathleen
+tar --exclude='__pycache__' --exclude='*.pyc' -cf "$stage/code.tar" dylathleen
 tar -xf "$stage/code.tar" -C "$lib"
 rm "$stage/code.tar"
 for command in dylathleen dylathleen-tray dylathleen-cli; do

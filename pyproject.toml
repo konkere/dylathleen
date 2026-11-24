@@ -36,4 +36,3 @@ version = {attr = "dylathleen.__version__"}
 
 [tool.setuptools.packages.find]
 include = ["dylathleen*"]
-exclude = ["dylathleen.gems.debian*"]

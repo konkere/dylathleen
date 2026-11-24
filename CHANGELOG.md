@@ -1,3 +1,7 @@
+# Unreleased
+
+- Removed the unused APT backend and its tests. Published packages already excluded this backend.
+
 # Dylath-Leen 0.4.0 — 2026-11-24
 
 - Added a bin manager for release binaries. Choose the version, asset, archive member and installation scope in the GUI. The installed list shows both registries, with update checks, pin, unpin and removal.

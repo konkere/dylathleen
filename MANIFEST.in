@@ -8,5 +8,3 @@ recursive-exclude dylathleen/gems/*/resources *.orig
 recursive-exclude linux_dist *
 recursive-exclude venv *
 recursive-exclude .venv *
-
-prune dylathleen/gems/debian
