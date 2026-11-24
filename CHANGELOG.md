@@ -1,9 +1,10 @@
-# Unreleased
+# Dylath-Leen 0.5.0 — 2026-11-24
 
-- Added deb-get catalogue and transactions, local Bash recipe management, and a release-based GitHub/GitLab recipe generator.
-- Added shared launch profiles for bin and deb-get, desktop file discovery, and copyable dpkg file details for installed deb-get applications.
-
-- Removed the unused APT backend and its tests. Published packages already excluded this backend.
+- Added a deb-get catalogue and package operations, with transaction previews and package-scoped removal and purge.
+- Added local Bash recipe editing, validation, backups, and a GitHub and GitLab release recipe generator.
+- Added persistent launch profiles for bin and deb-get, with automatic desktop launcher detection and manual graphical, terminal, or disabled modes.
+- The deb-get information dialog shows copyable installed file paths, executables, launch commands, and desktop launchers.
+- Removed the unused legacy APT backend and its tests.
 
 # Dylath-Leen 0.4.0 — 2026-11-24
 
