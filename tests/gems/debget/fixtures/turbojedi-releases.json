@@ -1,0 +1,138 @@
+[
+  {
+    "tag_name": "v0.18-rc1",
+    "assets": [
+      {
+        "name": "turbojedi_0.18-rc1_debian-12_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_debian-12_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_debian-12_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_debian-12_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_debian-13_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_debian-13_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_debian-13_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_debian-13_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_ubuntu-22.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_ubuntu-22.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_ubuntu-22.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_ubuntu-22.04_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_ubuntu-24.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_ubuntu-24.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_ubuntu-24.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_ubuntu-24.04_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_ubuntu-26.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_ubuntu-26.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.18-rc1_ubuntu-26.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.18-rc1/turbojedi_0.18-rc1_ubuntu-26.04_arm64.deb"
+      }
+    ],
+    "prerelease": true
+  },
+  {
+    "tag_name": "v0.17",
+    "assets": [
+      {
+        "name": "turbojedi_0.17_debian-12_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_debian-12_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_debian-12_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_debian-12_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_debian-13_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_debian-13_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_debian-13_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_debian-13_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_ubuntu-22.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_ubuntu-22.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_ubuntu-22.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_ubuntu-22.04_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_ubuntu-24.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_ubuntu-24.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_ubuntu-24.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_ubuntu-24.04_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_ubuntu-26.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_ubuntu-26.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.17_ubuntu-26.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.17/turbojedi_0.17_ubuntu-26.04_arm64.deb"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.16",
+    "assets": [
+      {
+        "name": "turbojedi_0.16_debian-12_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_debian-12_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_debian-12_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_debian-12_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_debian-13_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_debian-13_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_debian-13_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_debian-13_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_ubuntu-22.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_ubuntu-22.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_ubuntu-22.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_ubuntu-22.04_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_ubuntu-24.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_ubuntu-24.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_ubuntu-24.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_ubuntu-24.04_arm64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_ubuntu-26.04_amd64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_ubuntu-26.04_amd64.deb"
+      },
+      {
+        "name": "turbojedi_0.16_ubuntu-26.04_arm64.deb",
+        "browser_download_url": "https://github.com/cyanide-burnout/TurboJedi/releases/download/v0.16/turbojedi_0.16_ubuntu-26.04_arm64.deb"
+      }
+    ]
+  }
+]

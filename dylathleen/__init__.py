@@ -1,4 +1,4 @@
-__version__ = '0.4.0'
+__version__ = '0.5.0.dev1'
 __app_name__ = 'dylathleen'
 
 DISPLAY_NAME = "Dylath-Leen"

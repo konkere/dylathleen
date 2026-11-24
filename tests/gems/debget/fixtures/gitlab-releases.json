@@ -1,0 +1,35 @@
+[
+  {
+    "tag_name": "v2.0.0-rc1",
+    "assets": {
+      "links": [
+        {
+          "name": "vendor DEB",
+          "direct_asset_url": "https://gitlab.com/vendor/team/tool/-/releases/v2.0.0-rc1/downloads/tool_2.0.0-rc1_arm64.deb"
+        }
+      ]
+    }
+  },
+  {
+    "tag_name": "v1.4.2",
+    "assets": {
+      "links": [
+        {
+          "name": "vendor DEB",
+          "direct_asset_url": "https://gitlab.com/vendor/team/tool/-/releases/v1.4.2/downloads/tool_1.4.2_arm64.deb"
+        }
+      ]
+    }
+  },
+  {
+    "tag_name": "v1.4.1",
+    "assets": {
+      "links": [
+        {
+          "name": "vendor DEB",
+          "direct_asset_url": "https://gitlab.com/vendor/team/tool/-/releases/v1.4.1/downloads/tool_1.4.1_arm64.deb"
+        }
+      ]
+    }
+  }
+]

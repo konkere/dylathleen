@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dylathleen"
-description = "Graphical interface to manage Linux applications (AppImage, Flatpak, Snap and bin)"
+description = "Graphical interface to manage Linux applications (AppImage, Flatpak, Snap, bin and deb-get)"
 license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dynamic = ["version"]

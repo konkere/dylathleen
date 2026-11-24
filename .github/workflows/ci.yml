@@ -45,6 +45,18 @@ jobs:
           chmod 755 /tmp/dylathleen-bin/bin
           cd /tmp
           PATH="/tmp/dylathleen-bin:$PATH" PYTHONPATH="/usr/lib/dylathleen:$GITHUB_WORKSPACE" python3 -m unittest tests.gems.bin.test_integration
+      - name: Test deb-get with the Jammy package
+        if: matrix.image == 'ubuntu:22.04'
+        run: |
+          apt-get -qy --no-install-recommends install sudo jq curl wget lsb-release distro-info-data gpg
+          curl -fsSL --retry 3 https://github.com/wimpysworld/deb-get/releases/download/0.4.7/deb-get_0.4.7-1_all.deb -o /tmp/deb-get.deb
+          echo '8164b6019a10f0c8ffd91f347f4bf198d4a08ef036fd9cdddf2c9c4cdc6017ca  /tmp/deb-get.deb' | sha256sum -c
+          dpkg-deb -x /tmp/deb-get.deb /tmp/debget-native
+          install -m755 /tmp/debget-native/usr/bin/deb-get /usr/bin/deb-get
+          install -m440 /dev/null /etc/sudoers.d/dylathleen-ci
+          echo 'tester ALL=(root) NOPASSWD: ALL' > /etc/sudoers.d/dylathleen-ci
+          cd /tmp
+          DYLATHLEEN_TEST_CONTAINER=1 PYTHONPATH=/usr/lib/dylathleen python3 "$GITHUB_WORKSPACE/packaging/check-debget.py"
   flatpak:
     runs-on: ubuntu-24.04
     steps:

@@ -1,0 +1,20 @@
+[
+  {
+    "tag_name": "v0.4.0",
+    "assets": [
+      {
+        "name": "dylathleen_0.4.0-1_all.deb",
+        "browser_download_url": "https://github.com/konkere/dylathleen/releases/download/v0.4.0/dylathleen_0.4.0-1_all.deb"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.3.3",
+    "assets": [
+      {
+        "name": "dylathleen_0.3.3-1_all.deb",
+        "browser_download_url": "https://github.com/konkere/dylathleen/releases/download/v0.3.3/dylathleen_0.3.3-1_all.deb"
+      }
+    ]
+  }
+]

@@ -1,5 +1,7 @@
 # Unreleased
 
+- Added deb-get catalogue and transactions, local Bash recipe management, and a release-based GitHub/GitLab recipe generator.
+
 - Removed the unused APT backend and its tests. Published packages already excluded this backend.
 
 # Dylath-Leen 0.4.0 — 2026-11-24

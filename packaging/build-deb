@@ -39,6 +39,7 @@ done
 doc="$stage/usr/share/doc/dylathleen"
 install -Dm644 LICENSE "$doc/copyright"
 install -m644 README.md README.ru.md CHANGELOG.md "$doc/"
+install -m644 docs/deb-get.md "$doc/"
 find "$stage" -type d -exec chmod 755 {} +
 find "$lib" -type f -exec chmod 644 {} +
 find "$stage" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +

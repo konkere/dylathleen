@@ -534,6 +534,7 @@ class TextInputQt(QGroupBox):
             self.setMaximumWidth(int(self.model.max_width))
 
         self.text_input = QLineEditObserver() if model.type == TextInputType.SINGLE_LINE else QPlainTextEditObserver()
+        self.text_input.setReadOnly(model.read_only)
 
         if model.only_int:
             self.text_input.setValidator(QIntValidator())
@@ -1078,7 +1079,12 @@ def new_spacer(min_width: Optional[int] = None, min_height: Optional[int] = None
 
 
 def to_widget(comp: ViewComponent, i18n: I18n, parent: QWidget = None) -> QWidget:
-    if isinstance(comp, SingleSelectComponent):
+    from dylathleen.gems.debget.editor_model import RecipeEditorComponent
+
+    if isinstance(comp, RecipeEditorComponent):
+        from dylathleen.gems.debget.editor import RecipeEditor
+        return RecipeEditor(comp)
+    elif isinstance(comp, SingleSelectComponent):
         return new_single_select(comp)
     elif isinstance(comp, MultipleSelectComponent):
         return MultipleSelectQt(comp, None)
