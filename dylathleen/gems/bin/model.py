@@ -1,10 +1,9 @@
 import os
 import pwd
-import re
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from dylathleen.api.abstract.model import CustomSoftwareAction, SoftwarePackage
+from dylathleen.commons.repository import repository_publisher
 from dylathleen.gems.bin.registry import BinError, expanded_path
 
 ICON = str(Path(__file__).with_name('resources') / 'img' / 'bin.svg')
@@ -73,20 +72,7 @@ class BinApplication(SoftwarePackage):
         return False
 
     def get_publisher(self):
-        source = self.source
-        try:
-            url = urlsplit(source if '://' in source else f'https://{source}')
-            host = url.hostname or ''
-        except ValueError:
-            host = ''
-        if host in ('github.com', 'gitlab.com', 'codeberg.org'):
-            parts = url.path.strip('/').split('/')
-            if len(parts) >= 2 and re.fullmatch(r'[A-Za-z0-9_.-]+', parts[0]) and parts[0] not in ('.', '..'):
-                return parts[0]
-            return host.split('.')[0]
-        if re.fullmatch(r'[a-z0-9-]+(?:\.[a-z0-9-]+)+', host):
-            return host
-        return self.entry.get('provider')
+        return repository_publisher((self.source,), self.entry.get('provider'))
 
     def get_name_tooltip(self):
         return f'{self.name} ({self.description})\n{self.path}'

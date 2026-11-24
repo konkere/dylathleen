@@ -6,6 +6,7 @@ import subprocess
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
+from urllib.parse import unquote
 
 from dylathleen.gems.debget.privileged import PKG, ROOT, DebGetError, recipe_text, registered
 
@@ -35,6 +36,24 @@ class Recipe:
             return 'apt'
         forge = FORGE_METHOD.search(self.text)
         return forge[1].split('_')[0] if forge else self.fields.get('METHOD', 'direct')
+
+    @property
+    def release_repository(self):
+        forge = FORGE_METHOD.search(self.text)
+        if not forge or forge[1] not in ('github_releases', 'gitlab_releases'):
+            return None
+        line = self.text[forge.end():].partition('\n')[0]
+        try:
+            args = shlex.split(line, comments=True)
+        except ValueError:
+            return None
+        if args:
+            project = unquote(args[0])
+            if re.fullmatch(r'[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+', project):
+                return f'https://{forge[1].split("_")[0]}.com/{project}'
+            if forge[1] == 'gitlab_releases' and re.fullmatch(r'https://[A-Za-z0-9.-]+(?:/[A-Za-z0-9_.-]+){2,}', project):
+                return project
+        return None
 
     def compatible(self, architecture, codename, distro):
         arches = self.fields.get('ARCHS_SUPPORTED', 'amd64').split()

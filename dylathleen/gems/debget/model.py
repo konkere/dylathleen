@@ -1,7 +1,7 @@
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from dylathleen.api.abstract.model import CustomSoftwareAction, SoftwarePackage
+from dylathleen.commons.repository import FORGES, repository_publisher
 
 ICON = str(Path(__file__).with_name('resources') / 'img' / 'debget.svg')
 
@@ -67,11 +67,13 @@ class DebGetApplication(SoftwarePackage):
         pass
 
     def get_publisher(self):
+        fallback = self.method if self.method in FORGES.values() else None
         if self.recipe:
-            try:
-                return urlsplit(self.recipe.fields.get('WEBSITE', '')).hostname
-            except ValueError:
-                return None
+            fields = self.recipe.fields
+            apt_source = fields.get('APT_REPO_URL', '').partition(' ')[0]
+            sources = (self.recipe.release_repository, fields.get('WEBSITE'), fields.get('URL'), apt_source)
+            return repository_publisher(sources, fallback)
+        return fallback
 
     def supports_backup(self):
         return False
