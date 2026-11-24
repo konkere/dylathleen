@@ -6,7 +6,7 @@ Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinif
 
 ## Install and run
 
-From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.5.0~debget1-3_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
+From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.5.0~debget1-4_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
 
 Refresh to list installed software, search by name, select updates and review the confirmation before applying them. Use `dylathleen --offline` for local inventory, `dylathleen --settings` for format settings and `dylathleen-tray` for notifications. System Flatpak transactions use the system's authorization policy. Snap operations require snapd and may prompt for sudo. Configuration, installed AppImage data and caches use separate dylathleen directories. Existing bauh-managed AppImages are not automatically imported.
 
@@ -24,7 +24,16 @@ The normal update view uses `bin update --dry-run`. Selecting an older release l
 
 Install deb-get 0.4.7 separately. Open **Actions → Browse the deb-get catalogue**, or enter `deb-get` in the main search box. The manager supports installation, selective and bulk upgrades, reinstall, remove and purge for deb-get applications. Use **Refresh deb-get catalogue** on a fresh installation. APT/PPA candidates are labelled as local index data, and package transactions present a plan for confirmation. Use **Manage local deb-get recipes** or **Generate a deb-get recipe from releases** to work with local Bash recipes. [Details and manual checks](docs/deb-get.md)
 
+## Launch bin and deb-get applications
+
+Right-click an installed application or open its row menu and select **Configure launch**. Set the executable and its arguments, then select **Automatic**, **Graphical application**, **Run in a terminal** or **Launch disabled**. Automatic mode follows a suitable desktop file and opens a terminal when it declares `Terminal=true`. Choose a desktop file if several match. Without a suitable desktop file, select a mode yourself.
+
+The bin dialog starts with the registered executable path. For deb-get, the executable field offers the candidates found among installed files and accepts a custom path. Launch settings are stored per user and survive application updates. Changing a bin installation directory also moves the launch profiles for that scope. Every launch uses your desktop user account, including for system installations.
+
+The **?** window for installed deb-get applications shows the paths from dpkg, detected executables, the command with arguments and available desktop files. Use the eye icon to expand file lists and the copy buttons to copy paths or the command.
+
 ## Flatpak updates
+
 
 The inventory joins installed deployments to the remote update list by user/system scope, origin and typed ref (including architecture and branch). Flatpak supplies the installed version, active commit, target commit and the remote catalogue's release label. A changed commit with an unchanged reported version is a build update. An absent label, a failed catalogue refresh or a numerically older catalogue version yields an unknown target. A catalogue label is publisher metadata and can lag the actual commit. The displayed preview describes the last refresh. Flatpak resolves the transaction again when applying it.
 

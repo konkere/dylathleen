@@ -872,18 +872,27 @@ class FormQt(QGroupBox):
         tip_icon.setCursor(QCursor(Qt.WhatsThisCursor))
         return tip_icon
 
-    def _new_text_input(self, c: TextInputComponent) -> Tuple[QLabel, QLineEdit]:
+    def _new_text_input(self, c: TextInputComponent) -> Tuple[QWidget, QWidget]:
         view = QLineEditObserver() if c.type == TextInputType.SINGLE_LINE else QPlainTextEditObserver()
-        view.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
+        field = view
+        if c.suggestions and c.type == TextInputType.SINGLE_LINE:
+            field = QComboBox()
+            field.setEditable(True)
+            field.setLineEdit(view)
+            field.setInsertPolicy(QComboBox.NoInsert)
+            field.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+            field.addItems(c.suggestions)
+            field.setCurrentIndex(-1)
+        field.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Fixed)
 
         if c.id:
-            view.setObjectName(c.id)
+            field.setObjectName(c.id)
 
         if c.min_width >= 0:
-            view.setMinimumWidth(int(c.min_width))
+            field.setMinimumWidth(int(c.min_width))
 
         if c.min_height >= 0:
-            view.setMinimumHeight(int(c.min_height))
+            field.setMinimumHeight(int(c.min_height))
 
         if c.only_int:
             view.setValidator(QIntValidator())
@@ -899,7 +908,7 @@ class FormQt(QGroupBox):
             view.setCursorPosition(0)
 
         if c.read_only:
-            view.setEnabled(False)
+            field.setEnabled(False)
 
         def update_model(text: str):
             c.set_value(val=text, caller=view)
@@ -920,7 +929,7 @@ class FormQt(QGroupBox):
             if c.tooltip:
                 label.layout().addWidget(self.gen_tip_icon(c.tooltip))
 
-        return label, self._wrap(view, c)
+        return label, self._wrap(field, c)
 
     def _new_range_input(self, model: RangeInputComponent) -> QSpinBox:
         spinner = QSpinBox()

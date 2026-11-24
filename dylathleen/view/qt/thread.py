@@ -5,6 +5,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+from html import escape
 from io import StringIO
 from logging import Logger
 from pathlib import Path
@@ -939,15 +940,13 @@ class LaunchPackage(AsyncAction):
         self.manager = manager
 
     def run(self):
-        if self.pkg:
-            try:
-                super(LaunchPackage, self).msleep(250)
-                self.manager.launch(self.pkg.model)
-                self.notify_finished(True)
-            except Exception:
-                traceback.print_exc()
-            finally:
-                self.notify_finished(False)
+        try:
+            self.manager.launch(self.pkg.model)
+        except Exception as error:
+            self.show_message(self.i18n['error'].capitalize(), escape(str(error)), MessageType.ERROR)
+            self.notify_finished(False)
+        else:
+            self.notify_finished(True)
 
 
 class ApplyFilters(AsyncAction):

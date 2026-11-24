@@ -1,4 +1,5 @@
 """Read the native registry and recipe manifests without sourcing Bash."""
+import os
 import platform
 import re
 import shlex
@@ -8,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import unquote
 
-from dylathleen.gems.debget.privileged import PKG, ROOT, DebGetError, recipe_text, registered
+from dylathleen.gems.debget.privileged import PKG, ROOT, DebGetError, package, recipe_text, registered
 
 PLATFORM = {
     'bookworm': ('debian', '12'), 'trixie': ('debian', '13'),
@@ -149,6 +150,16 @@ def apt_candidate(name):
                             env={'LC_ALL': 'C'}, text=True, timeout=10)
     match = re.search(r'^\s+Candidate:\s+(\S+)', result.stdout, re.M)
     return match[1] if match and match[1] != '(none)' else None
+
+
+def installed_files(name):
+    result = subprocess.run(['/usr/bin/dpkg-query', '-L', '--', package(name)], stdin=subprocess.DEVNULL,
+                            capture_output=True, text=True, timeout=10)
+    if result.returncode:
+        return ()
+    return tuple(dict.fromkeys(os.path.normpath(path) for path in result.stdout.splitlines()
+                              if os.path.isabs(path) and os.path.lexists(path) and
+                              (not os.path.isdir(path) or os.path.islink(path))))
 
 
 def inventory(root=ROOT):

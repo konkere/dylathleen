@@ -3,13 +3,14 @@ import pwd
 from pathlib import Path
 
 from dylathleen.api.abstract.model import CustomSoftwareAction, SoftwarePackage
+from dylathleen.commons.app_launch import LaunchablePackage
 from dylathleen.commons.repository import repository_publisher
 from dylathleen.gems.bin.registry import BinError, expanded_path
 
 ICON = str(Path(__file__).with_name('resources') / 'img' / 'bin.svg')
 
 
-class BinApplication(SoftwarePackage):
+class BinApplication(LaunchablePackage, SoftwarePackage):
     def __init__(self, key, entry, system, i18n):
         self.system = system
         self.entry = entry
@@ -65,9 +66,6 @@ class BinApplication(SoftwarePackage):
     def fill_cached_data(self, data):
         pass
 
-    def can_be_run(self):
-        return False  # CLI applications need a terminal; Info provides a copyable command.
-
     def supports_backup(self):
         return False
 
@@ -83,7 +81,8 @@ class BinApplication(SoftwarePackage):
     def get_custom_actions(self):
         verb = 'unpin' if self.pinned else 'pin'
         key = f'bin.action.{verb}'
-        return (CustomSoftwareAction(key, key, ICON, verb, requires_root=False, requires_confirmation=False),)
+        return (self.configure_launch_action(),
+                CustomSoftwareAction(key, key, ICON, verb, requires_root=False, requires_confirmation=False))
 
     def executable(self):
         return os.path.isabs(self.path) and os.path.isfile(self.path) and os.access(self.path, os.X_OK)

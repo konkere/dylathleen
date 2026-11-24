@@ -203,6 +203,9 @@ class SoftwarePackage(ABC):
         :return: whether the app can be run via the GUI
         """
 
+    def get_launch_disabled_reason(self) -> Optional[str]:
+        return None
+
     def is_trustable(self) -> bool:
         """
         :return: if the package is distributed by a trustable source

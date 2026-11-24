@@ -1,6 +1,7 @@
 # Unreleased
 
 - Added deb-get catalogue and transactions, local Bash recipe management, and a release-based GitHub/GitLab recipe generator.
+- Added shared launch profiles for bin and deb-get, desktop file discovery, and copyable dpkg file details for installed deb-get applications.
 
 - Removed the unused APT backend and its tests. Published packages already excluded this backend.
 

@@ -16,6 +16,8 @@ from dylathleen.api.abstract.model import PackageUpdate
 from dylathleen.api.abstract.view import (FileChooserComponent, FormComponent, InputOption, MessageType, MultipleSelectComponent,
                                           PanelComponent, SelectViewType, SingleSelectComponent, TextInputComponent, TextInputType)
 from dylathleen.api.paths import CONFIG_DIR, CACHE_DIR
+from dylathleen.commons.app_launch import ApplicationLauncher
+from dylathleen.commons.desktop_entry import DesktopCatalogue
 from dylathleen.gems.debget import catalogue, client, generator
 from dylathleen.gems.debget.editor_model import RecipeEditorComponent
 from dylathleen.gems.debget.model import ICON, DebGetApplication, action
@@ -42,6 +44,7 @@ class DebGetManager(SoftwareManager, SettingsController):
         self.lock = RLock()
         self.settings_path = Path(CONFIG_DIR) / 'debget.json'
         self.log_path = Path(CACHE_DIR) / 'debget-last.log'
+        self.launcher = ApplicationLauncher(self.i18n)
         self.actions = {name: action(name, online, refresh) for name, online, refresh in (
             ('refresh_catalogue', True, True), ('check_updates', True, True), ('bulk_upgrade', True, True),
             ('browse_catalogue', False, True), ('manage_recipes', False, True),
@@ -90,7 +93,7 @@ class DebGetManager(SoftwareManager, SettingsController):
         except (OSError, ValueError, TypeError):
             return SETTINGS.copy()
 
-    def _apps(self):
+    def _apps(self, read_launch=True):
         recipes, registry, statuses = catalogue.inventory()
         arch, codename, distro = catalogue.machine()
         settings = self._config()
@@ -107,11 +110,22 @@ class DebGetManager(SoftwareManager, SettingsController):
                 if status and available == status[0]:
                     available = None
                 result.append(DebGetApplication(name, recipe, status, registry.get(name), available, self.actions, compatible))
+        installed = [app for app in result if app.installed] if read_launch else []
+        if installed:
+            desktops = DesktopCatalogue()
+            profiles = self.launcher.saved_profiles()
+            for app in installed:
+                try:
+                    files = catalogue.installed_files(app.deb_name)
+                except (OSError, subprocess.SubprocessError, UnicodeError) as error:
+                    self.logger.warning('deb-get: could not read files for %s: %s', app.deb_name, error)
+                    files = ()
+                self.launcher.populate(app, desktops, profiles, files=files)
         return result
 
-    def _read_apps(self):
+    def _read_apps(self, read_launch=True):
         try:
-            return self._apps()
+            return self._apps(read_launch)
         except FAILURES as error:
             self.warning = str(error)
             self.logger.warning('deb-get: %s', error)
@@ -136,7 +150,8 @@ class DebGetManager(SoftwareManager, SettingsController):
     def list_updates(self, internet_available):
         if not internet_available:
             return []
-        return [PackageUpdate(p.id, p.latest_version, p.get_type(), p.name) for p in self._read_apps() if p.update]
+        return [PackageUpdate(p.id, p.latest_version, p.get_type(), p.name)
+                for p in self._read_apps(read_launch=False) if p.update]
 
     def list_warnings(self, internet_available):
         if self.warning:
@@ -164,13 +179,19 @@ class DebGetManager(SoftwareManager, SettingsController):
                 'published': details.get('Published') or pkg.latest_version if pkg.update else details.get('Published'),
                 'apt_cached_candidate': cached,
                 'overrides': ', '.join(recipe.repo for recipe in catalogues) if len(catalogues) > 1 else None}
+        if pkg.installed:
+            info.update(self.launcher.information(pkg))
+            info.setdefault('app_files', self.i18n['launch.info.unknown'])
         return {k: v for k, v in info.items() if v}
 
     def get_history(self, pkg):
         pass
 
     def launch(self, pkg):
-        pass
+        self.launcher.launch(pkg)
+
+    def configure_launch(self, pkg, root_password, watcher):
+        return self.launcher.configure(pkg, watcher)
 
     def downgrade(self, pkg, root_password, handler):
         return False

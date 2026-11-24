@@ -114,6 +114,7 @@ class UpgradeToggleButton(QToolButton):
 
 class PackagesTable(QTableWidget):
     COL_NUMBER = 9
+    ACTIONS_COLUMN = 7
     DEFAULT_ICON_SIZE = QSize(16, 16)
 
     def __init__(self, parent: QWidget, icon_cache: MemoryCache, download_icons: bool, logger: Logger):
@@ -154,7 +155,16 @@ class PackagesTable(QTableWidget):
             pkg.model.supports_ignored_updates() or \
             bool(pkg.model.get_custom_actions())
 
-    def show_pkg_actions(self, pkg: PackageView):
+    def contextMenuEvent(self, event):
+        row = self.rowAt(event.pos().y())
+        toolbar = self.cellWidget(row, self.ACTIONS_COLUMN) if row >= 0 else None
+        if toolbar and self.has_any_settings(toolbar.package_view):
+            self.show_pkg_actions(toolbar.package_view, event.globalPos())
+            event.accept()
+        else:
+            super().contextMenuEvent(event)
+
+    def show_pkg_actions(self, pkg: PackageView, position=None):
         menu_row = QMenu()
         menu_row.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         menu_row.setObjectName('app_actions')
@@ -206,8 +216,7 @@ class PackagesTable(QTableWidget):
             menu_row.addActions((self._map_custom_action(pkg, a, menu_row) for a in custom_actions))
 
         menu_row.adjustSize()
-        menu_row.popup(QCursor.pos())
-        menu_row.exec_()
+        menu_row.exec_(position if position is not None else QCursor.pos())
 
     def _map_custom_action(self, pkg: PackageView, action: CustomSoftwareAction, parent: QWidget) -> QCustomMenuAction:
         def custom_action():
@@ -339,7 +348,7 @@ class PackagesTable(QTableWidget):
         self._set_col_publisher(4, pkg, screen_width)
         self._set_col_type(5, pkg)
         self._set_col_installed(6, pkg)
-        self._set_col_actions(7, pkg)
+        self._set_col_actions(self.ACTIONS_COLUMN, pkg)
 
         if change_update_col and update_check_enabled:
             if pkg.model.installed and not pkg.model.is_update_ignored() and pkg.model.update:
@@ -665,6 +674,7 @@ class PackagesTable(QTableWidget):
 
     def _set_col_actions(self, col: int, pkg: PackageView):
         toolbar = QCustomToolbar()
+        toolbar.package_view = pkg
         toolbar.setObjectName('app_actions')
         toolbar.add_space()
 
@@ -678,6 +688,9 @@ class PackagesTable(QTableWidget):
             if not pkg.model.can_be_run():
                 bt.setEnabled(False)
                 bt.setProperty('_enabled', 'false')
+                reason = pkg.model.get_launch_disabled_reason()
+                if reason:
+                    bt.setToolTip(self.i18n[reason])
 
             toolbar.layout().addWidget(bt)
 

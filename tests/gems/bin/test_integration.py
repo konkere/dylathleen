@@ -19,6 +19,7 @@ import requests
 
 from dylathleen.api.abstract.handler import ProcessWatcher
 from dylathleen.api.abstract.view import SingleSelectComponent, TextInputComponent
+from dylathleen.commons.app_launch import LaunchProfile, LaunchProfiles
 from dylathleen.gems.bin import registry, releases
 from dylathleen.gems.bin.client import BinCommand, BinError, ChoiceRequired
 from dylathleen.gems.bin.controller import BinManager
@@ -165,6 +166,7 @@ class BinIntegrationTest(unittest.TestCase):
                                                         'proceed': 'Proceed', 'cancel': 'Cancel', 'error': 'Error'},
                                                   logger=logging.getLogger(__name__)))
         self.manager.settings_path = self.root / 'settings.json'
+        self.manager.launcher.profiles = LaunchProfiles(self.root / 'launch.json')
         self.manager.registries[True] = SimpleNamespace(read=lambda: {'bins': {}})
         self.watcher = Watcher()
         self.binary = self.root / '.local/bin/tool'
@@ -241,6 +243,10 @@ class BinIntegrationTest(unittest.TestCase):
 
     def test_change_user_directory_rejects_conflict_and_updates_registry_on_retry(self):
         self.assertTrue(self.manager.install_url(None, self.watcher), self.watcher.errors)
+        installed = self.installed()
+        self.manager.launcher.profiles.save(self.manager.launcher.key(installed),
+                                            LaunchProfile('gui', str(self.binary), ('--example',)))
+        self.assertEqual(self.installed().launch_state.command.argv, (str(self.binary), '--example'))
         settings = next(self.manager.get_settings())
         directory, _ = settings.component.components[0].components
         directory.set_value('~/commands')
@@ -250,9 +256,15 @@ class BinIntegrationTest(unittest.TestCase):
         self.assertFalse(settings.save()[0])
         self.assertEqual(self.manager._directories()['user'], '~/.local/bin')
         self.assertEqual(self.run_binary(), 'tool v1.0.0')
+        self.assertEqual(self.installed().launch_state.command.argv, (str(self.binary), '--example'))
         self.assertEqual(new_path.read_text(), 'unrelated')
         new_path.unlink()
         self.assertEqual(settings.save(), (True, None))
         self.assertFalse(self.binary.exists())
         self.assertEqual(subprocess.check_output([new_path], text=True).strip(), 'tool v1.0.0')
         self.assertEqual(list(registry.read_registry(self.config)['bins']), [str(new_path)])
+        moved = self.installed()
+        self.assertEqual(moved.launch_profile.path, str(new_path))
+        self.assertEqual(moved.launch_state.command.argv, (str(new_path), '--example'))
+        self.upgrade(moved)
+        self.assertEqual(self.installed().launch_state.command.argv, (str(new_path), '--example'))

@@ -1,5 +1,4 @@
 import json
-import shlex
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
@@ -17,6 +16,8 @@ from dylathleen.api.abstract.model import CustomSoftwareAction, PackageUpdate
 from dylathleen.api.abstract.view import FormComponent, InputOption, MessageType, PanelComponent, SelectViewType, SingleSelectComponent, TextInputComponent
 from dylathleen.api.paths import CONFIG_DIR
 from dylathleen.api.user import is_root
+from dylathleen.commons.app_launch import ApplicationLauncher
+from dylathleen.commons.desktop_entry import DesktopCatalogue
 from dylathleen.gems.bin.client import BinCommand, BinRegistry, ChoiceRequired, SystemAccessRequired
 from dylathleen.gems.bin.model import ICON, BinApplication
 from dylathleen.gems.bin.registry import BinError, absolute_path, write_json
@@ -44,6 +45,7 @@ class BinManager(SoftwareManager, SettingsController):
         self.system_entries = {}
         self.registry_errors = {}
         self.update_errors = {}
+        self.launcher = ApplicationLauncher(self.i18n)
 
     def can_work(self):
         return (True, None) if self._executable() else (False, self.i18n['bin.unavailable'])
@@ -106,8 +108,14 @@ class BinManager(SoftwareManager, SettingsController):
     def _applications(self):
         with self.lock:
             scopes = (False, True) if not is_root() else (True,)
-            return [BinApplication(key, entry, system, self.i18n)
+            apps = [BinApplication(key, entry, system, self.i18n)
                     for system in scopes for key, entry in self._read(system).items()]
+            if apps:
+                desktops = DesktopCatalogue()
+                profiles = self.launcher.saved_profiles()
+                for app in apps:
+                    self.launcher.populate(app, desktops, profiles, managed_path=app.path)
+            return apps
 
     def _check_update(self, pkg):
         if pkg.pinned:
@@ -164,17 +172,20 @@ class BinManager(SoftwareManager, SettingsController):
     def get_info(self, pkg):
         info = {'name': pkg.name, 'version': pkg.version, 'scope': pkg.description,
                 'source': pkg.source, 'provider': pkg.entry.get('provider'),
-                'binary_path': pkg.path, 'asset': pkg.entry.get('selected_asset'),
+                'asset': pkg.entry.get('selected_asset'),
                 'member': pkg.entry.get('package_path'), 'update_error': pkg.update_error}
-        if pkg.executable():
-            info['launch_command'] = shlex.quote(pkg.path)
+        info.update(self.launcher.information(pkg))
+        info['binary_path'] = pkg.path
         return {key: value for key, value in info.items() if value}
 
     def get_history(self, pkg):
         pass
 
     def launch(self, pkg):
-        pass
+        self.launcher.launch(pkg)
+
+    def configure_launch(self, pkg, root_password, watcher):
+        return self.launcher.configure(pkg, watcher)
 
     def downgrade(self, pkg, root_password, handler):
         return False
@@ -413,11 +424,16 @@ class BinManager(SoftwareManager, SettingsController):
                     self.settings_path.parent.mkdir(parents=True, exist_ok=True)
                     write_json(self.settings_path, current)
                     try:
-                        if system:
-                            result = self._system_call(self.registries[True].migrate, directories[scope], watcher=watcher)
-                            self.system_entries = result['bins']
-                        else:
-                            self.registries[False].migrate(directories[scope])
+                        registry = self.registries[system]
+                        native = self._system_call(registry.read, watcher=watcher) if system else registry.read()
+                        paths = [BinApplication(key, entry, system, self.i18n).path
+                                 for key, entry in native['bins'].items()]
+                        with self.launcher.profiles.relocate_bin(scope, paths, directories[scope]):
+                            if system:
+                                result = self._system_call(registry.migrate, directories[scope], watcher=watcher)
+                                self.system_entries = result['bins']
+                            else:
+                                registry.migrate(directories[scope])
                     except Exception:
                         write_json(self.settings_path, previous)
                         raise

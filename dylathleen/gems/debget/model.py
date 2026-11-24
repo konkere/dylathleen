@@ -1,12 +1,13 @@
 from pathlib import Path
 
 from dylathleen.api.abstract.model import CustomSoftwareAction, SoftwarePackage
+from dylathleen.commons.app_launch import LaunchablePackage
 from dylathleen.commons.repository import FORGES, repository_publisher
 
 ICON = str(Path(__file__).with_name('resources') / 'img' / 'debget.svg')
 
 
-class DebGetApplication(SoftwarePackage):
+class DebGetApplication(LaunchablePackage, SoftwarePackage):
     def __init__(self, name, recipe, state, registered_method, available, actions, compatible=True):
         self.recipe = recipe
         self.deb_name = name
@@ -51,9 +52,6 @@ class DebGetApplication(SoftwarePackage):
     def can_be_installed(self):
         return self.recipe is not None and not self.recipe.deprecated and self.compatible and not self.installed
 
-    def can_be_run(self):
-        return False
-
     def supports_disk_cache(self):
         return False
 
@@ -79,6 +77,8 @@ class DebGetApplication(SoftwarePackage):
         return False
 
     def get_custom_actions(self):
+        if self.installed:
+            yield self.configure_launch_action()
         if self.recipe:
             yield self.actions['resolve']
         if self.registered_method and self.recipe:
