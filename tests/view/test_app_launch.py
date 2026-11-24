@@ -80,6 +80,32 @@ class LaunchViewTest(TestCase):
         self.assertTrue(self.launcher.configure(pkg, SimpleNamespace(request_confirmation=confirm)))
         self.assertEqual(pkg.launch_state.command.executable, custom)
 
+    def test_validation_reopens_form_with_values_and_new_widgets(self):
+        program = self.program('cli')
+        pkg = BinApplication(program, {'version': '1'}, False, self.i18n)
+        self.launcher.populate(pkg, DesktopCatalogue(()), {}, managed_path=program)
+        errors = []
+
+        def confirm(components, **kwargs):
+            mode, path, args = components[0].components
+            self.assertEqual(path.observers, [])
+            self.assertEqual(args.observers, [])
+            form = FormQt(components[0], self.i18n)
+            self.assertTrue(args.observers)
+            if not errors:
+                mode.value = next(option for option in mode.options if option.value == 'gui')
+                args.set_value('"unterminated')
+            else:
+                self.assertEqual(args.get_value(), '"unterminated')
+                args.set_value('--version')
+            form.deleteLater()
+            return True
+
+        watcher = SimpleNamespace(request_confirmation=confirm, show_message=lambda *args: errors.append(args))
+        self.assertTrue(self.launcher.configure(pkg, watcher))
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(pkg.launch_state.command.argv, (program, '--version'))
+
     def test_run_tooltip_and_context_menu_then_enable_run(self):
         parent = QWidget()
         parent.i18n = self.i18n

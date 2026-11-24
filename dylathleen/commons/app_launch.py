@@ -250,11 +250,17 @@ class ApplicationLauncher:
                                                   next(option for option in choices if option.value == current.desktop),
                                                   max_width=520)
             fields.append(desktop_field)
-        while watcher.request_confirmation(title=self.i18n['launch.configure'], body=self.i18n['launch.help'],
-                                           components=[FormComponent(fields, spaces=False)],
-                                           confirmation_label=self.i18n['launch.save'],
-                                           deny_label=self.i18n['cancel'].capitalize(), window_cancel=True,
-                                           scroll_content=False):
+        while True:
+            confirmed = watcher.request_confirmation(title=self.i18n['launch.configure'], body=self.i18n['launch.help'],
+                                                      components=[FormComponent(fields, spaces=False)],
+                                                      confirmation_label=self.i18n['launch.save'],
+                                                      deny_label=self.i18n['cancel'].capitalize(), window_cancel=True,
+                                                      scroll_content=False)
+            # Reopening a form renders new widgets for the same field values.
+            path_field.observers.clear()
+            args_field.observers.clear()
+            if not confirmed:
+                return False
             try:
                 path = path_field.get_value().strip()
                 mode = mode_field.get_selected()
@@ -283,7 +289,6 @@ class ApplicationLauncher:
                 return True
             except (OSError, ValueError) as error:
                 watcher.show_message(self.i18n['launch.configure'], escape(str(error)), MessageType.ERROR)
-        return False
 
     def launch(self, pkg):
         state = pkg.launch_state
