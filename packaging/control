@@ -1,5 +1,5 @@
 Package: dylathleen
-Version: 0.3.3-1
+Version: 0.4.0-1
 Architecture: all
 Section: admin
 Priority: optional
@@ -9,4 +9,5 @@ Recommends: libnotify-bin, xdg-utils, libfuse2t64 | libfuse2
 Suggests: snapd, sudo
 Homepage: https://github.com/konkere/dylathleen
 Description: Graphical manager for third-party Linux applications
- Dylath-Leen manages Flatpak, Snap and AppImage in a Qt interface.
+ Dylath-Leen manages Flatpak, Snap, AppImage and marcosnils/bin in a Qt
+ interface. The bin integration is available when bin is installed separately.

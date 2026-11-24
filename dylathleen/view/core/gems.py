@@ -12,6 +12,7 @@ FORBIDDEN_GEMS_FILE = f'/etc/{__app_name__}/gems.forbidden'
 
 SUPPORTED = {
     'appimage': 'AppImageManager',
+    'bin': 'BinManager',
     'flatpak': 'FlatpakManager',
     'snap': 'SnapManager',
 }

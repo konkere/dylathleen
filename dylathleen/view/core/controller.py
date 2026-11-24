@@ -561,10 +561,10 @@ class GenericSoftwareManager(SoftwareManager, SettingsController):
             self.settings_manager.managers = self.managers
             self.settings_manager.working_managers = self.working_managers
 
-        yield SettingsView(self, self.settings_manager.get_settings())
+        yield SettingsView(self, self.settings_manager.get_settings(), save_callback=self.save_settings)
 
-    def save_settings(self, component: TabGroupComponent) -> Tuple[bool, Optional[List[str]]]:
-        return self.settings_manager.save_settings(component)
+    def save_settings(self, component: TabGroupComponent, watcher=None) -> Tuple[bool, Optional[List[str]]]:
+        return self.settings_manager.save_settings(component, watcher)
 
     def _map_pkgs_by_manager(self, pkgs: List[SoftwarePackage], pkg_filters: list = None) -> Dict[SoftwareManager, List[SoftwarePackage]]:
         by_manager = {}

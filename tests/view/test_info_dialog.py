@@ -1,6 +1,7 @@
 from unittest import TestCase
+from unittest.mock import patch
 
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QToolButton
 
 from dylathleen.commons.installed_files import InstalledFiles
 from dylathleen.gems.flatpak.model import FlatpakApplication
@@ -19,10 +20,12 @@ class InfoDialogTest(TestCase):
         i18n = I18n('ru', get_locale_keys('ru')[1], 'en', get_locale_keys('en')[1])
         self.paths = ['/opt/My App/start', '/opt/My App/значок.png']
         self.command = "'/opt/My App/start' --open"
+        self.source = 'https://github.com/marcosnils/bin/releases/tag/v0.29.4'
         self.dialog = InfoDialog({
             '__app__': PackageView(FlatpakApplication(name='Example'), i18n),
             'app_files': InstalledFiles(self.paths[0], self.paths),
             'launch_command': self.command,
+            'source': self.source,
         }, None, i18n, True)
         self.dialog.show()
         self.addCleanup(self.dialog.close)
@@ -36,6 +39,19 @@ class InfoDialogTest(TestCase):
             self.assertEqual(expected, self.qt.clipboard().text())
             self.assertTrue(self.dialog.gbox_info.isVisible())
             self.assertFalse(self.dialog.bt_copy_close.isVisible())
+
+    def test_url_uses_an_accessible_icon_and_opens_the_full_address(self):
+        open_url = self.grid.itemAtPosition(3, 2).widget()
+        self.assertIsInstance(open_url, QToolButton)
+        self.assertEqual(open_url.text(), '')
+        self.assertEqual(open_url.toolTip(), 'Открыть')
+        self.assertTrue(open_url.accessibleName().startswith('Открыть'))
+        self.assertFalse(open_url.icon().pixmap(16, 16).isNull())
+        with patch.object(self.dialog, 'open_url') as action:
+            open_url.click()
+        action.assert_called_once_with(self.source)
+        self.grid.itemAtPosition(3, 3).widget().click()
+        self.assertEqual(self.qt.clipboard().text(), self.source)
 
     def test_copy_and_close_uses_the_entire_current_detail(self):
         self.grid.itemAtPosition(2, 2).widget().click()

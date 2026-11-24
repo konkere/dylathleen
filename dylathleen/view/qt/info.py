@@ -59,6 +59,7 @@ class InfoDialog(QDialog):
         self.setWindowIcon(QIcon(pkg_info['__app__'].model.get_type_icon_path()))
 
         self.show_icon = QIcon(resource.get_path('img/show-field.svg'))
+        self.open_icon = QIcon(resource.get_path('img/open-field.svg'))
         self.copy_icon = QIcon(resource.get_path('img/copy-field.svg'))
 
         for idx, attr in enumerate(sorted(pkg_info.keys())):
@@ -155,8 +156,7 @@ class InfoDialog(QDialog):
 
     def _add_field_actions(self, row: int, label: str, value: str, full_value: str):
         if self._can_open_url and RE_URL.match(full_value):
-            show = QPushButton(self.i18n['manage_window.info.open_url'])
-            show.setCursor(Qt.PointingHandCursor)
+            show = self._icon_button(self.open_icon, self.i18n['manage_window.info.open_url'], label)
             show.clicked.connect(lambda: self.open_url(full_value))
         else:
             show = self._icon_button(self.show_icon, self.i18n['show'].capitalize(), label)

@@ -1,3 +1,9 @@
+# Dylath-Leen 0.4.0 — 2026-11-24
+
+- Added a bin manager for release binaries. Choose the version, asset, archive member and installation scope in the GUI. The installed list shows both registries, with update checks, pin, unpin and removal.
+- Added configurable installation directories with migration of registered binaries and their metadata.
+- The bin list shows repository owners as publishers. Short confirmation forms now fit their contents, and repository links in the information window use an external-link icon.
+
 # Dylath-Leen 0.3.3 — 2026-11-24
 
 - Removed the Web Apps manager and its Nativefier toolchain. Existing web application files and desktop entries are left in place when upgrading.

@@ -143,14 +143,17 @@ class SettingsController(ABC):
 class SettingsView:
 
     def __init__(self, controller: SettingsController, component: ViewComponent, label: Optional[str] = None,
-                 icon_path: Optional[str] = None):
+                 icon_path: Optional[str] = None, save_callback=None):
 
         self.controller = controller
         self.component = component
         self.label = label
         self.icon_path = icon_path
+        self.save_callback = save_callback
 
-    def save(self) -> Tuple[bool, Optional[List[str]]]:
+    def save(self, watcher: Optional[ProcessWatcher] = None) -> Tuple[bool, Optional[List[str]]]:
+        if self.save_callback:
+            return self.save_callback(self.component, watcher)
         return self.controller.save_settings(self.component)
 
 

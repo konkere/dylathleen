@@ -1,8 +1,8 @@
 from typing import List, Optional
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QIcon, QCursor
-from PyQt5.QtWidgets import QMessageBox, QLabel, QWidget, QHBoxLayout, QDialog, QVBoxLayout, QSizePolicy, QPushButton, \
+from PyQt5.QtWidgets import QApplication, QMessageBox, QLabel, QWidget, QHBoxLayout, QDialog, QVBoxLayout, QSizePolicy, QPushButton, \
     QScrollArea, QFrame, QCheckBox
 
 from dylathleen.api.abstract.view import MessageType
@@ -64,6 +64,7 @@ class ConfirmationDialog(QDialog):
         if isinstance(min_height, int) and min_height > 0:
             container_body.setMinimumWidth(min_height)
 
+        scroll = None
         if widgets:
             container_body.setLayout(QVBoxLayout())
             scroll = QScrollArea(self)
@@ -133,6 +134,15 @@ class ConfirmationDialog(QDialog):
             if not confirmation_button:
                 bt_cancel.setDefault(True)
                 bt_cancel.setAutoDefault(True)
+
+        if scroll:
+            # A scroll area's size hint can be smaller than even a short form.
+            # Fit the form initially and keep scrolling for oversized content.
+            self.ensurePolished()
+            body_size = container_body.sizeHint().expandedTo(container_body.minimumSizeHint())
+            extra = self.layout().sizeHint() - scroll.sizeHint()
+            available = QApplication.desktop().availableGeometry(QCursor.pos()).size() - QSize(32, 64)
+            self.resize((body_size + extra).expandedTo(self.sizeHint()).boundedTo(available))
 
     def confirm(self):
         self.confirmed = True

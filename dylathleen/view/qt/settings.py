@@ -14,6 +14,8 @@ from dylathleen.view.qt import dialog
 from dylathleen.view.qt.components import to_widget, new_spacer
 from dylathleen.view.qt.dialog import ConfirmationDialog
 from dylathleen.view.qt.qt_utils import centralize
+from dylathleen.view.qt.root import RootDialog
+from dylathleen.view.qt.thread import AsyncAction
 from dylathleen.view.util import util
 from dylathleen.view.util.translation import I18n
 
@@ -34,6 +36,16 @@ class ReloadManagePanel(QThread):
         self.signal_finished.emit()
 
 
+class SaveSettings(AsyncAction):
+    def __init__(self, view, i18n):
+        super().__init__(i18n)
+        self.view = view
+        self.result = None
+
+    def run(self):
+        self.result = self.view.save(self)
+
+
 class SettingsWindow(QWidget):
 
     def __init__(self, manager: SoftwareManager, i18n: I18n, window: QWidget, parent: Optional[QWidget] = None):
@@ -45,9 +57,13 @@ class SettingsWindow(QWidget):
         self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.window = window
 
-        self.settings_model = tuple(v for v in self.manager.get_settings())[0].component
+        settings = next(iter(self.manager.get_settings()))
+        self.thread_save_settings = SaveSettings(settings, i18n)
+        self.thread_save_settings.finished.connect(self._settings_saved)
+        self.thread_save_settings.signal_root_password.connect(self._ask_root_password)
+        self.saving = False
 
-        self.tab_group = to_widget(self.settings_model, i18n)
+        self.tab_group = to_widget(settings.component, i18n)
         self.tab_group.setObjectName('settings')
         self.layout().addWidget(self.tab_group)
 
@@ -87,6 +103,9 @@ class SettingsWindow(QWidget):
         centralize(self)
 
     def closeEvent(self, event):
+        if self.saving:
+            event.ignore()
+            return
         if self.window and self.window.settings_window == self:
             self.deleteLater()
             self.window.settings_window = None
@@ -104,11 +123,19 @@ class SettingsWindow(QWidget):
             self.setWindowState(self.windowState() and Qt.WindowMinimized or Qt.WindowActive)
 
     def _save_settings(self):
+        self.saving = True
         self.tab_group.setEnabled(False)
         self.bt_change.setEnabled(False)
         self.bt_close.setEnabled(False)
 
-        success, warnings = self.manager.save_settings(self.settings_model)
+        self.thread_save_settings.start()
+
+    def _ask_root_password(self):
+        self.thread_save_settings.set_root_password(*RootDialog.ask_password(self.manager.context, self.i18n))
+
+    def _settings_saved(self):
+        self.saving = False
+        success, warnings = self.thread_save_settings.result
 
         if success:
             if not self.window:
@@ -132,7 +159,7 @@ class SettingsWindow(QWidget):
             msg = StringIO()
             msg.write(f"<p>{self.i18n['settings.error']}</p>")
 
-            for w in warnings:
+            for w in warnings or ():
                 msg.write(f'<p style="font-weight: bold">* {w}</p><br/>')
 
             dialog.show_message(title=self.i18n['warning'].capitalize(), body=msg.getvalue(), type_=MessageType.WARNING)

@@ -35,6 +35,16 @@ jobs:
           name: dylathleen-deb
           path: dist
       - run: ./packaging/check-distribution
+      - name: Test bin with the Jammy package
+        if: matrix.image == 'ubuntu:22.04'
+        run: |
+          apt-get -qy --no-install-recommends install ca-certificates curl
+          mkdir -p /tmp/dylathleen-bin
+          curl -fsSL --retry 3 https://github.com/marcosnils/bin/releases/download/v0.29.4/bin_0.29.4_linux_amd64 -o /tmp/dylathleen-bin/bin
+          echo 'f7a179a813675bde2d8cf0ad3b4ae1d7bb1c6732daf623fb8deeba9f5f4782a7  /tmp/dylathleen-bin/bin' | sha256sum -c
+          chmod 755 /tmp/dylathleen-bin/bin
+          cd /tmp
+          PATH="/tmp/dylathleen-bin:$PATH" PYTHONPATH="/usr/lib/dylathleen:$GITHUB_WORKSPACE" python3 -m unittest tests.gems.bin.test_integration
   flatpak:
     runs-on: ubuntu-24.04
     steps:

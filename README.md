@@ -2,13 +2,23 @@
 
 [Русская версия](README.ru.md) · [Changes](CHANGELOG.md)
 
-Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinifmor/bauh) by Vinícius Moreira. Its native Python / Qt 5 desktop manages Flatpak, Snap and AppImage. APT and dpkg are outside its catalogue.
+Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinifmor/bauh) by Vinícius Moreira. Its native Python / Qt 5 desktop manages Flatpak, Snap, AppImage and binaries installed with [marcosnils/bin](https://github.com/marcosnils/bin). APT and dpkg are outside its catalogue.
 
 ## Install and run
 
-From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.3.3-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
+From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.4.0-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
 
 Refresh to list installed software, search by name, select updates and review the confirmation before applying them. Use `dylathleen --offline` for local inventory, `dylathleen --settings` for format settings and `dylathleen-tray` for notifications. System Flatpak transactions use the system's authorization policy. Snap operations require snapd and may prompt for sudo. Configuration, installed AppImage data and caches use separate dylathleen directories. Existing bauh-managed AppImages are not automatically imported.
+
+## bin
+
+Install [marcosnils/bin](https://github.com/marcosnils/bin/releases) v0.29.4 or later and make it available in `PATH` or in one of the configured bin directories. Open **Actions → Install from a repository (bin)** and enter the HTTPS repository URL. The dialog supports GitHub, Codeberg and GitLab release attachments for `owner/repo` URLs. Pick a release (the latest stable one is selected initially), a file for your OS and architecture, and, when prompted, the executable inside the archive. Sources, checksums and signatures are filtered out. GitLab assets exposed only through the package registry or release descriptions can be installed with the CLI.
+
+Choose a user installation (`~/.local/bin` by default) or a system installation (`/usr/local/bin`). The table shows both scopes and exposes pin and unpin in the row menu. If the root registry is locked, use **Actions → Read the system bin registry** to authorize access through sudo. Dylath-Leen keeps the last system inventory in memory for the session. Downloads and bin commands run as the desktop user, and system filesystem changes use a separate privileged helper. The helper requires system destinations with root-owned, non-group/world-writable directory components.
+
+Edit the directories in **Settings → bin** to move the files registered in each changed scope. The migration updates absolute paths and the CLI's default directory. A destination conflict or a locally replaced binary stops that scope's migration. If you change both fields, each scope is saved independently. Add the destination to your shell's `PATH` to launch commands by name after moving them.
+
+The normal update view uses `bin update --dry-run`. Selecting an older release leaves it eligible for updates. Use **Pin version** to hold it. If bin cannot reuse the previous asset or archive member, Dylath-Leen asks for a new choice for the supported repository hosts. For other existing providers, update selection is limited to what bin can resolve without a prompt. Use the native CLI for provider-specific commands and unsupported archive layouts. Keep Dylath-Leen and the bin CLI from modifying the same registry concurrently.
 
 ## Flatpak updates
 

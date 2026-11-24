@@ -490,12 +490,12 @@ class GenericSettingsManager(SettingsController):
         except Exception:
             return False, [traceback.format_exc()]
 
-    def _save_views(self, views: Iterable[SettingsView], success_list: List[bool], warnings: List[str]):
+    def _save_views(self, views: Iterable[SettingsView], success_list: List[bool], warnings: List[str], watcher):
         success = False
 
         for view in views:
             try:
-                res = view.save()
+                res = view.save(watcher)
 
                 if res:
                     success, errors = res[0], res[1]
@@ -529,7 +529,7 @@ class GenericSettingsManager(SettingsController):
         finally:
             success_list.append(success)
 
-    def save_settings(self, component: TabGroupComponent) -> Tuple[bool, Optional[List[str]]]:
+    def save_settings(self, component: TabGroupComponent, watcher=None) -> Tuple[bool, Optional[List[str]]]:
         ti = time.time()
         save_threads, warnings, success_list = [], [], []
 
@@ -540,7 +540,7 @@ class GenericSettingsManager(SettingsController):
         if self._settings_views:
 
             for views in self._settings_views.values():
-                save_view = Thread(target=self._save_views, args=(views, success_list, warnings), daemon=True)
+                save_view = Thread(target=self._save_views, args=(views, success_list, warnings, watcher), daemon=True)
                 save_view.start()
                 save_threads.append(save_view)
 
