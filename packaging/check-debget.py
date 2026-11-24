@@ -13,6 +13,7 @@ from dylathleen.gems.debget.privileged import MARKER
 ROOT = Path('/etc/deb-get')
 STATE = ROOT / 'installed'
 RECIPES = ROOT / '99-local.d'
+DOWNLOADED = ROOT / '01-main.d'
 WRAPPER = Path('/usr/local/bin/deb-get')
 HELPER = Path('/usr/lib/dylathleen/dylathleen/gems/debget/privileged.py')
 FIXTURE = '\n'.join((
@@ -83,7 +84,11 @@ def test_removal(directory):
     STATE.write_text(f'{apt_fixture} 1 apt\n{first} 1 direct\n{second} 1 direct\n')
     before = STATE.read_bytes()
     # Keep catalogue refresh offline while exercising the real update path.
-    (ROOT / '01-main.repo').write_text('file:///unused\n')
+    (ROOT / '01-main.repo').write_text('file:///unused\n#cawbird\n')
+    DOWNLOADED.mkdir()
+    archived = DOWNLOADED / 'cawbird'
+    archived.write_text(FIXTURE)
+    archived.chmod(0o664)
     (RECIPES / first).write_text(FIXTURE.replace('VERSION_PUBLISHED=1.0', 'VERSION_PUBLISHED=2.0'))
     code, output = invoke('update', user=True)
     assert code == 0 and 'has an update pending. 2.0 is available' in output, output
@@ -114,6 +119,8 @@ def test_removal(directory):
 
 def test_direct_package(directory):
     name = 'dylath-test-direct'
+    manifest = ROOT / '01-main.repo'
+    manifest.write_text(manifest.read_text() + name + '\n')
     build(directory, name, '1.0')
     build(directory, name, '2.0')
     server = ThreadingHTTPServer(('127.0.0.1', 0), partial(SimpleHTTPRequestHandler, directory=str(directory)))
@@ -123,7 +130,9 @@ def test_direct_package(directory):
         for published in ('1.0', '2.0'):
             recipe = FIXTURE.replace('VERSION_PUBLISHED=1.0', f'VERSION_PUBLISHED={published}').replace(
                 'https://example.invalid/fixture.deb', f'http://127.0.0.1:{server.server_port}/{name}-{published}.deb')
-            (RECIPES / name).write_text(recipe)
+            path = DOWNLOADED / name
+            path.write_text(recipe)
+            path.chmod(0o664)
             if published == '2.0':
                 show_code, shown = invoke('show', name, user=True)
                 assert show_code == 0 and '2.0.deb' in shown, shown
@@ -141,7 +150,7 @@ def test_direct_package(directory):
         server.shutdown()
         thread.join()
         server.server_close()
-    print('Native direct install, update, reinstall and version resolution verified.')
+    print('Native catalogue install, update, reinstall and version resolution verified with upstream archive modes.')
 
 
 FIRST_LINE = 'dylath-test-remove 1 direct'

@@ -35,7 +35,8 @@ class ConfirmationDialog(QDialog):
                  window_cancel: bool = False, confirmation_label: Optional[str] = None, deny_label: Optional[str] = None,
                  confirmation_icon: bool = True, min_width: Optional[int] = None,
                  min_height: Optional[int] = None, max_width: Optional[int] = None,
-                 confirmation_icon_type: MessageType = MessageType.INFO, count_selected: bool = False):
+                 confirmation_icon_type: MessageType = MessageType.INFO, count_selected: bool = False,
+                 scroll_content: bool = True):
         super(ConfirmationDialog, self).__init__()
 
         if not window_cancel:
@@ -59,20 +60,20 @@ class ConfirmationDialog(QDialog):
 
         container_body = QWidget()
         container_body.setObjectName('confirm_container_body')
-        container_body.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
-
-        if isinstance(min_height, int) and min_height > 0:
-            container_body.setMinimumWidth(min_height)
+        container_body.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
         scroll = None
         if widgets:
             container_body.setLayout(QVBoxLayout())
-            scroll = QScrollArea(self)
-            scroll.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
-            scroll.setFrameShape(QFrame.NoFrame)
-            scroll.setWidgetResizable(True)
-            scroll.setWidget(container_body)
-            self.layout().addWidget(scroll)
+            if scroll_content:
+                scroll = QScrollArea(self)
+                scroll.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
+                scroll.setFrameShape(QFrame.NoFrame)
+                scroll.setWidgetResizable(True)
+                scroll.setWidget(container_body)
+                self.layout().addWidget(scroll)
+            else:
+                self.layout().addWidget(container_body, 1)
         else:
             container_body.setLayout(QHBoxLayout())
             self.layout().addWidget(container_body)
@@ -86,6 +87,7 @@ class ConfirmationDialog(QDialog):
         if body:
             lb_msg = QLabel(body)
             lb_msg.setObjectName('confirm_msg')
+            lb_msg.setWordWrap(True)
             container_body.layout().addWidget(lb_msg)
 
         if widgets:
@@ -135,14 +137,28 @@ class ConfirmationDialog(QDialog):
                 bt_cancel.setDefault(True)
                 bt_cancel.setAutoDefault(True)
 
+        if widgets:
+            self.ensurePolished()
+            screen_size = QApplication.desktop().availableGeometry(QCursor.pos()).size()
+            available = (screen_size - QSize(32, 64)).boundedTo(self.maximumSize())
         if scroll:
             # A scroll area's size hint can be smaller than even a short form.
             # Fit the form initially and keep scrolling for oversized content.
-            self.ensurePolished()
             body_size = container_body.sizeHint().expandedTo(container_body.minimumSizeHint())
             extra = self.layout().sizeHint() - scroll.sizeHint()
-            available = QApplication.desktop().availableGeometry(QCursor.pos()).size() - QSize(32, 64)
-            self.resize((body_size + extra).expandedTo(self.sizeHint()).boundedTo(available))
+            size = (body_size + extra).expandedTo(self.sizeHint()).boundedTo(available)
+            body_width = max(0, size.width() - extra.width())
+            wrapped_height = container_body.layout().totalHeightForWidth(body_width)
+            required_height = max(body_size.height(), wrapped_height) + extra.height()
+            if required_height > available.height():
+                # A vertical bar reduces the viewport's width. Reserve that
+                # space so a tall list does not gain a horizontal bar as well.
+                bar_width = scroll.verticalScrollBar().sizeHint().width()
+                size.setWidth(min(available.width(), size.width() + bar_width))
+            size.setHeight(min(available.height(), max(size.height(), required_height)))
+            self.resize(size)
+        elif widgets:
+            self.resize(self.sizeHint().boundedTo(available))
 
     def confirm(self):
         self.confirmed = True

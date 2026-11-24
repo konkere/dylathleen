@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 """The installed, root-owned boundary for deb-get and its APT subprocesses."""
 import fcntl
+import grp
 import hashlib
 import json
 import os
+import pwd
 import re
 import shlex
 import signal
 import stat
 import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from urllib.parse import urlsplit
@@ -35,7 +38,17 @@ def package(value):
     return value
 
 
-def secure(path, directory=False, missing=False):
+@lru_cache(maxsize=1)
+def root_group_is_private():
+    try:
+        members = grp.getgrgid(0).gr_mem
+        return (all(pwd.getpwnam(member).pw_uid == 0 for member in members)
+                and all(user.pw_uid == 0 or user.pw_gid != 0 for user in pwd.getpwall()))
+    except KeyError:
+        return False
+
+
+def secure(path, directory=False, missing=False, downloaded_recipe=False):
     """Require root-controlled paths without symlinks for privileged operations."""
     for part in [*reversed(path.parents), path]:
         try:
@@ -45,8 +58,17 @@ def secure(path, directory=False, missing=False):
                 return False
             raise
         check = stat.S_ISDIR if part != path or directory else stat.S_ISREG
-        if not check(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+        if not check(info.st_mode) or info.st_uid != 0 or info.st_mode & stat.S_IWOTH:
             raise DebGetError(f'Unsafe system path: {part}')
+        if info.st_mode & stat.S_IWGRP:
+            # GitHub tarballs store ordinary recipes as root:root 0664.
+            # Only the downloaded file may use that mode. Its parents and
+            # locally edited recipes still require owner-only write access.
+            root_only = (downloaded_recipe and part == path and not directory and info.st_gid == 0
+                         and root_group_is_private()
+                         and 'system.posix_acl_access' not in os.listxattr(part, follow_symlinks=False))
+            if not root_only:
+                raise DebGetError(f'Unsafe system path: {part}')
     return True
 
 
@@ -352,9 +374,11 @@ def check_native_paths():
                 secure(path)
             if path.suffix == '.d':
                 secure(path, directory=True)
+                manifest = ROOT / (path.stem + '.repo')
+                downloaded = path.stem not in {'00-builtin', '99-local'} and secure(manifest, missing=True)
                 for recipe in path.iterdir():
                     if PKG.fullmatch(recipe.name):
-                        secure(recipe)
+                        secure(recipe, downloaded_recipe=downloaded)
     if secure(CACHE, directory=True, missing=True):
         for path in CACHE.iterdir():
             if path.is_symlink():

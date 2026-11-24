@@ -613,7 +613,8 @@ class ManageWindow(QWidget):
                                   min_width=msg.get('min_width'),
                                   min_height=msg.get('min_height'),
                                   max_width=msg.get('max_width'),
-                                  count_selected=msg.get('count_selected', False))
+                                  count_selected=msg.get('count_selected', False),
+                                  scroll_content=msg.get('scroll_content', True))
         diag.ask()
         res = diag.confirmed
         self.thread_animate_progress.animate()

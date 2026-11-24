@@ -14,7 +14,7 @@ import requests
 from dylathleen.api.abstract.controller import SearchResult, SettingsController, SettingsView, SoftwareManager, TransactionResult
 from dylathleen.api.abstract.model import PackageUpdate
 from dylathleen.api.abstract.view import (FileChooserComponent, FormComponent, InputOption, MessageType, MultipleSelectComponent,
-                                          PanelComponent, SelectViewType, SingleSelectComponent, TextInputComponent)
+                                          PanelComponent, SelectViewType, SingleSelectComponent, TextInputComponent, TextInputType)
 from dylathleen.api.paths import CONFIG_DIR, CACHE_DIR
 from dylathleen.gems.debget import catalogue, client, generator
 from dylathleen.gems.debget.editor_model import RecipeEditorComponent
@@ -180,9 +180,13 @@ class DebGetManager(SoftwareManager, SettingsController):
 
     def _confirm(self, watcher, text=None, components=None, confirm_key='proceed'):
         body = (f'<p style="white-space: pre-wrap">{escape(text)}</p>' if text else None)
+        has_text_view = any(isinstance(c, RecipeEditorComponent)
+                            or isinstance(c, TextInputComponent) and c.type == TextInputType.MULTIPLE_LINES
+                            for c in components or ())
         return watcher.request_confirmation(title=self._title(), body=body, components=components,
                                             confirmation_label=self.i18n[confirm_key].capitalize(),
-                                            deny_label=self.i18n['cancel'].capitalize(), window_cancel=True)
+                                            deny_label=self.i18n['cancel'].capitalize(), window_cancel=True,
+                                            scroll_content=not has_text_view)
 
     def _ask(self, watcher, text=None, components=None, confirm_key='proceed'):
         if not self._confirm(watcher, text, components, confirm_key):
@@ -224,9 +228,8 @@ class DebGetManager(SoftwareManager, SettingsController):
             self.logger.warning('deb-get log: %s', error)
 
     def _readonly(self, value):
-        from dylathleen.api.abstract.view import TextInputType
         return TextInputComponent(self.i18n['debget.output'], value=value, type_=TextInputType.MULTIPLE_LINES,
-                                  read_only=True, min_width=560, min_height=230)
+                                  read_only=True, min_width=420, min_height=160)
 
     def _transaction(self, pkg, verb, password, watcher):
         name = pkg.deb_name
@@ -426,7 +429,7 @@ class DebGetManager(SoftwareManager, SettingsController):
             menu.append(('ShellCheck', 'shellcheck'))
         choice = self._combo(self.i18n['debget.recipe_tools'], menu, 'save')
         while True:
-            components = ([FormComponent([editable_name])] if editable_name else []) + [editor, choice]
+            components = ([FormComponent([editable_name], spaces=False)] if editable_name else []) + [editor, choice]
             self._ask(watcher, components=components)
             operation = choice.get_selected()
             if operation != 'save':
@@ -539,11 +542,13 @@ class DebGetManager(SoftwareManager, SettingsController):
             by_slot = {}
             for asset in releases[0]:
                 codename, arch = generator.guessed_platform(asset)
-                option = InputOption(f'{asset.name} · {codename or "any OS"} · {arch}', asset)
+                filename = asset.name
+                short_name = filename if len(filename) <= 48 else f'{filename[:22]}…{filename[-24:]}'
+                option = InputOption(f'{short_name} · {codename or "any OS"} · {arch}', asset, tooltip=filename)
                 options.append(option)
                 by_slot.setdefault((codename, arch), []).append(option)
             selection = MultipleSelectComponent(self.i18n['debget.assets'], options,
-                                                {items[0] for items in by_slot.values() if len(items) == 1}, max_height=290)
+                                                {items[0] for items in by_slot.values() if len(items) == 1})
             self._ask(watcher, self.i18n['debget.choose_assets'], [selection])
             assets = selection.get_selected_values()
             if not assets:
@@ -571,7 +576,8 @@ class DebGetManager(SoftwareManager, SettingsController):
                 suffix = self._field('version_suffix', inferred.version_suffix)
                 url_rule = self._field('url_rule', inferred.version_from_url)
                 self._ask(watcher, f'{asset.name}\n{meta.package} {meta.version} ({meta.arch})\n' +
-                          self.i18n['debget.rule_help'], [FormComponent([platform, processor, pattern, prefix, suffix, url_rule])])
+                          self.i18n['debget.rule_help'],
+                          [FormComponent([platform, processor, pattern, prefix, suffix, url_rule], spaces=False)])
                 rule = generator.Rule(platform.get_selected(), processor.get_selected(), pattern.get_value(),
                                       prefix.get_value(), suffix.get_value(), url_rule.get_value())
                 generator.check_rule(rule, asset, meta, releases)

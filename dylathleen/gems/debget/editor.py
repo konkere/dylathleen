@@ -48,7 +48,7 @@ class BashEdit(QPlainTextEdit):
         super().__init__(model.value)
         self.setFont(QFontDatabase.systemFont(QFontDatabase.FixedFont))
         self.setLineWrapMode(QPlainTextEdit.NoWrap)
-        self.setMinimumSize(570, 300)
+        self.setMinimumSize(360, 160)
         self.setReadOnly(model.readonly)
         self.gutter = Gutter(self)
         self.highlight = BashHighlight(self.document())
@@ -56,6 +56,9 @@ class BashEdit(QPlainTextEdit):
         self.updateRequest.connect(self.update_gutter)
         self.textChanged.connect(lambda: setattr(model, 'value', self.toPlainText()))
         self.update_gutter_width()
+
+    def sizeHint(self):
+        return QSize(570, 300)
 
     def gutter_width(self):
         return 11 + self.fontMetrics().horizontalAdvance('9') * len(str(self.blockCount()))
@@ -81,6 +84,7 @@ class RecipeEditor(QWidget):
     def __init__(self, model):
         super().__init__()
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         banner = QWidget()
         banner.setObjectName('debget_recipe_warning')
         banner.setStyleSheet('#debget_recipe_warning { background: #fff0f0; border: 2px solid #b52727; }'

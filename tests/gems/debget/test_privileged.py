@@ -1,5 +1,6 @@
 import json
 import os
+import stat
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -7,6 +8,30 @@ from types import SimpleNamespace
 from unittest import TestCase, mock
 
 from dylathleen.gems.debget import client, privileged as helper
+
+
+class NativePathTest(TestCase):
+    def test_downloaded_recipe_group_write_is_limited_to_private_root_group(self):
+        path = Path('/etc/deb-get/01-main.d/1password')
+        directory = SimpleNamespace(st_mode=stat.S_IFDIR | 0o755, st_uid=0, st_gid=0)
+
+        def verify(mode, gid=0, private=True, acl=False, downloaded=True):
+            recipe = SimpleNamespace(st_mode=mode, st_uid=0, st_gid=gid)
+            with (mock.patch.object(Path, 'lstat', autospec=True, side_effect=lambda part: recipe if part == path else directory),
+                  mock.patch.object(helper, 'root_group_is_private', return_value=private),
+                  mock.patch.object(os, 'listxattr', return_value=['system.posix_acl_access'] if acl else [])):
+                return helper.secure(path, downloaded_recipe=downloaded)
+
+        self.assertTrue(verify(stat.S_IFREG | 0o664))
+        for mode, extras in (
+                (stat.S_IFREG | 0o664, {'gid': 1000}),
+                (stat.S_IFREG | 0o664, {'private': False}),
+                (stat.S_IFREG | 0o664, {'acl': True}),
+                (stat.S_IFREG | 0o664, {'downloaded': False}),
+                (stat.S_IFREG | 0o666, {}),
+                (stat.S_IFLNK | 0o777, {})):
+            with self.subTest(mode=mode, **extras), self.assertRaises(helper.DebGetError):
+                verify(mode, **extras)
 
 
 class AptBoundaryTest(TestCase):
