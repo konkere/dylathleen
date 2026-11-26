@@ -117,6 +117,44 @@ fi''')
         credential.unlink()
 
 
+def relocated_bin_check():
+    from dylathleen.daemon import checks
+    from tests.gems.bin.test_integration import ReleaseHandler
+    binary = Path('/usr/local/bin/bin')
+    server = ThreadingHTTPServer(('127.0.0.1', 0), ReleaseHandler)
+    server.base = f'http://127.0.0.1:{server.server_port}'
+    server.latest = 'v2.0.0'
+    server.fail_checks = False
+    Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        with TemporaryDirectory(dir='/opt') as root, TemporaryDirectory(dir='/run') as temp:
+            directory = Path(root)
+            directory.chmod(0o755)
+            relocated = directory / 'bin'
+            fixture_binary = binary.with_name('dylathleen-test-bin')
+            binary.rename(fixture_binary)
+            try:
+                # The native binary talks to the fixture release API. No host
+                # network credentials or caller-defined PATH enter the service.
+                relocated.write_text(f'#!/bin/sh\nexport GHES_BASE_URL={server.base}/ GHES_UPLOAD_URL={server.base}/ '
+                                     f'GHES_AUTH_TOKEN=fixture\nexec {fixture_binary} "$@"\n')
+                relocated.chmod(0o755)
+                key = '/usr/local/bin/tool'
+                entries = {str(relocated): {'pinned': True}, key: {'path': key, 'version': 'v1.0.0',
+                           'provider': 'github', 'url': 'https://github.com/example/tool/releases/tag/v1.0.0'}}
+                data = {'bins': entries}
+                folder = Path(temp)
+                checks.snapshot(data, folder)
+                assert checks.installed_bin(entries) == relocated
+                report = checks.isolated_checks(data, folder)
+                assert report == {'updates': {'bin:' + key: 'v2.0.0'}, 'stale': []}, report
+            finally:
+                fixture_binary.rename(binary)
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def check_lifecycle(candidate, settings, before):
     timer = 'dylathleen-refresh.timer'
     subprocess.run(['dpkg', '-i', candidate], check=True)
@@ -197,6 +235,7 @@ def main(previous, candidate):
             server.shutdown()
             server.server_close()
     guard_failures()
+    relocated_bin_check()
     indexes = [p for p in Path('/var/lib/apt/lists').glob('*') if p.is_file()]
     baseline = {p: hashlib.sha256(p.read_bytes()).digest() for p in
                 (fixtures.STATE, Path('/var/lib/dpkg/status'), *Path('/etc/apt').rglob('*.list'), *indexes)}

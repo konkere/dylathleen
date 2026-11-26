@@ -12,12 +12,28 @@ from tempfile import TemporaryDirectory, TemporaryFile
 
 import requests
 
+from dylathleen.gems.bin import registry
 from dylathleen.gems.bin.client import BinCommand
 from dylathleen.gems.debget import catalogue
 from dylathleen.gems.debget.privileged import NATIVE, ROOT, package, secure, check_native_paths
 from dylathleen.daemon.inventory import newer, inventory, persist
 
 WORKER = '/usr/lib/dylathleen/check-updates'
+
+
+def installed_bin(entries):
+    paths = ['/usr/local/bin/bin', '/usr/bin/bin', *(k for k in entries if Path(k).name == 'bin')]
+    for key in paths:
+        try:
+            path = registry.expanded_path(key)
+            registry.directory(path.parent, system=True)
+            info = registry.regular_file(path, system=True)
+            if (info and info.st_mode & 0o005 == 0o005 and
+                    all(p.stat().st_mode & 0o001 for p in path.parents)):
+                return path
+        except (OSError, registry.BinError):
+            continue
+    return None
 
 
 def isolated_checks(data, folder):
@@ -33,6 +49,14 @@ def isolated_checks(data, folder):
                   '-/etc/apt/sources.list -/etc/apt/sources.list.d -/var/lib/apt/lists '
                   f'{folder}/recipes:/etc/deb-get {folder}/cache:/seed',
                   'TemporaryFileSystem=/var/cache/deb-get:rw,mode=1777']
+    if data.get('bins'):
+        binary = installed_bin(data['bins'])
+        if binary:
+            # The directory is root-only, and the bind source is always a
+            # fixed path without systemd escaping or user-controlled syntax.
+            shutil.copyfile(binary, folder / 'bin')
+            (folder / 'bin').chmod(0o555)
+            properties.append(f'BindReadOnlyPaths={folder}/bin:/run/dylathleen-bin')
     cmd = ['/usr/bin/systemd-run', '--quiet', '--pipe', '--wait', '--collect', '--service-type=exec',
            *('--property=' + prop for prop in properties), WORKER]
     with TemporaryFile() as output:
@@ -201,10 +225,7 @@ def main():
         if entry.get('pinned'):
             continue
         try:
-            binary = next((p for p in ('/usr/local/bin/bin', '/usr/bin/bin') if os.access(p, os.X_OK)), None)
-            if not binary:
-                raise FileNotFoundError()
-            with BinCommand(binary, entry) as command:
+            with BinCommand('/run/dylathleen-bin', entry) as command:
                 update = command.check()
             if update:
                 versions['bin:' + key] = update.version

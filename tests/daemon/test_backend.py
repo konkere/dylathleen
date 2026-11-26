@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from dylathleen.daemon import checks, client, inventory
-from dylathleen.daemon.operations import destination
+from dylathleen.daemon.operations import allowed_source, destination
 from dylathleen.daemon.service import Backend
 
 
@@ -56,6 +56,14 @@ class CacheTest(unittest.TestCase):
         result = inventory.public_entry({'path': '/opt/bin/app', 'token': 'private',
                                          'url': 'https://example.org/file?token=secret'})
         self.assertEqual(result, {'path': '/opt/bin/app'})
+
+    def test_registered_provider_keeps_its_origin(self):
+        previous = 'https://releases.example.org/v1/tool'
+        self.assertTrue(allowed_source('https://releases.example.org/v2/tool', previous))
+        self.assertFalse(allowed_source('https://other.example.org/v2/tool', previous))
+        self.assertFalse(allowed_source(previous, None))
+        self.assertFalse(allowed_source('https://github.com/new/tool', 'https://github.com/old/tool'))
+        self.assertFalse(allowed_source(previous + '?token=private', previous))
 
     def test_disallowed_install_directory(self):
         with self.assertRaises(ValueError):

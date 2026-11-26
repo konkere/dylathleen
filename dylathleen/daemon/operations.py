@@ -4,11 +4,11 @@ import json
 import os
 import re
 import shutil
-import socket
 import stat
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlsplit
 
 from dylathleen.daemon.inventory import public_entry, FIELDS
 from dylathleen.gems.bin import registry
@@ -74,6 +74,21 @@ def destination(value, trusted=()):
     return path
 
 
+def allowed_source(url, previous):
+    if not url or public_entry({'url': url}).get('url') != url:
+        return False
+    parsed = urlsplit(url if '://' in url else 'https://' + url)
+    forge = parsed.scheme == 'https' and parsed.netloc in ('github.com', 'gitlab.com', 'codeberg.org')
+    if forge and not re.fullmatch(r'/[\w.-]+/[\w./%+~-]+', parsed.path):
+        return False
+    if not previous:
+        return forge
+    old = urlsplit(previous if '://' in previous else 'https://' + previous)
+    if parsed.scheme == old.scheme == 'https' and parsed.netloc and parsed.netloc == old.netloc:
+        return not forge or parsed.path.split('/')[:3] == old.path.split('/')[:3]
+    return url == previous
+
+
 def bin_change(action, key, expected, entry, folder, artifact=None):
     path = registry.config_path()
     current = registry.transact(path, {'operation': 'read'}, system=True)
@@ -103,8 +118,7 @@ def bin_change(action, key, expected, entry, folder, artifact=None):
                 or fcntl.fcntl(artifact, fcntl.F_GET_SEALS) & fcntl.F_SEAL_GROW == 0):
             raise ValueError('Expected an immutable binary artifact')
         if (not re.fullmatch('[0-9a-f]{64}', entry.get('hash', '')) or set(entry) - FIELDS
-                or not re.fullmatch(r'(?:https://)?(?:github\.com|gitlab\.com|codeberg\.org)/[\w./%+~-]+',
-                                    entry.get('url', ''))):
+                or not allowed_source(entry.get('url', ''), expected.get('url'))):
             raise ValueError('Invalid binary metadata or repository')
         if action == 'install' and target.parent != Path(folder):
             raise ValueError('Destination does not match installation directory')

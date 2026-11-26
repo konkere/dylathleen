@@ -12,7 +12,7 @@ The `dylathleen-refresh.timer` unit requests an hourly metadata check. The defau
 busctl call ru.konkere.DylathLeen1 /ru/konkere/DylathLeen1 ru.konkere.DylathLeen1 ConfigureTimer u 120
 ```
 
-The foreground deb-get transaction can use the desktop user's existing GitHub token. For scheduled checks an administrator can place a dedicated read-only GitHub credential in `/etc/dylathleen/github-token`. The file must belong to root with mode 0600 and root-controlled parent directories. The daemon supplies release metadata to recipes using a literal GitHub repository and the native default or latest release selector. Dynamic selectors and other hosting services use their native anonymous network requests inside the worker. System bin dry runs use a system installation of bin in `/usr/local/bin` or `/usr/bin`.
+The foreground deb-get transaction can use the desktop user's existing GitHub token. For scheduled checks an administrator can place a dedicated read-only GitHub credential in `/etc/dylathleen/github-token`. The file must belong to root with mode 0600 and root-controlled parent directories. The daemon supplies release metadata to recipes using a literal GitHub repository and the native default or latest release selector. Dynamic selectors and other hosting services use their native anonymous network requests inside the worker. System bin dry runs use a root-controlled, publicly executable bin from `/usr/local/bin`, `/usr/bin` or its registered system location after migration.
 
 ## Service interface and trust boundaries
 

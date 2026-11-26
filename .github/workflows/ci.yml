@@ -85,6 +85,9 @@ jobs:
           echo '8164b6019a10f0c8ffd91f347f4bf198d4a08ef036fd9cdddf2c9c4cdc6017ca  /tmp/deb-get.deb' | sha256sum -c
           dpkg-deb -x /tmp/deb-get.deb /tmp/native
           sudo install /tmp/native/usr/bin/deb-get /usr/bin/deb-get
+          curl -fsSL --retry 3 https://github.com/marcosnils/bin/releases/download/v0.29.4/bin_0.29.4_linux_amd64 -o /tmp/native-bin
+          echo 'f7a179a813675bde2d8cf0ad3b4ae1d7bb1c6732daf623fb8deeba9f5f4782a7  /tmp/native-bin' | sha256sum -c
+          sudo install /tmp/native-bin /usr/local/bin/bin
           curl -fsSL --retry 3 https://github.com/konkere/dylathleen/releases/download/v0.5.0/dylathleen_0.5.0-1_all.deb -o /tmp/previous.deb
           echo 'f38eaf4a51cb976580b664db365d8855c0411e8fb2945a0a94c6bad860de32ad  /tmp/previous.deb' | sha256sum -c
-          sudo env DYLATHLEEN_TEST_VM=1 PYTHONPATH=/usr/lib/dylathleen /usr/bin/python3 packaging/check-system-service.py /tmp/previous.deb dist/*.deb
+          sudo env DYLATHLEEN_TEST_VM=1 PYTHONPATH="/usr/lib/dylathleen:$GITHUB_WORKSPACE" /usr/bin/python3 packaging/check-system-service.py /tmp/previous.deb dist/*.deb
