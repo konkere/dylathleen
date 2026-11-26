@@ -133,7 +133,9 @@ def relocated_bin_check():
     server.fail_checks = False
     Thread(target=server.serve_forever, daemon=True).start()
     try:
-        with TemporaryDirectory(dir='/opt') as root, noexec_directory() as folder:
+        # Hosted runners may give their account write access to /opt.
+        # Use the daemon's root-controlled state directory for the fixture.
+        with TemporaryDirectory(dir='/var/lib/dylathleen') as root, noexec_directory() as folder:
             directory = Path(root)
             directory.chmod(0o755)
             relocated = directory / 'bin'
@@ -150,7 +152,8 @@ def relocated_bin_check():
                            'provider': 'github', 'url': 'https://github.com/example/tool/releases/tag/v1.0.0'}}
                 data = {'bins': entries}
                 checks.snapshot(data, folder)
-                assert checks.installed_bin(entries) == relocated
+                selected = checks.installed_bin(entries)
+                assert selected == relocated, f'Expected relocated bin {relocated}, found {selected}'
                 report = checks.isolated_checks(data, folder)
                 assert report == {'updates': {'bin:' + key: 'v2.0.0'}, 'stale': []}, report
             finally:
