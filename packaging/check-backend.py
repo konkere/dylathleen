@@ -2,6 +2,7 @@
 import importlib.util
 import json
 import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -66,6 +67,30 @@ def bin_roundtrip():
         test.doCleanups()
 
 
+def concurrent_operations():
+    import dbus
+    api = client.interface()
+    try:
+        api.Refresh('yes', signature='s')
+    except dbus.DBusException as error:
+        assert error.get_dbus_name() == 'org.freedesktop.DBus.Error.InvalidArgs', error
+    else:
+        raise AssertionError('Refresh accepted an invalid wire signature')
+    job, descriptor = api.Recipe('backups', 'fixture', '', '', '', signature='sssss')
+    with socket.socket(fileno=descriptor.take()) as peer:
+        assert api.GetOperation(job, signature='u')[1] == 'running'
+        try:
+            api.Refresh(False, signature='b')
+        except dbus.DBusException as error:
+            assert 'Another system operation is running' in str(error)
+        else:
+            raise AssertionError('Refresh overlapped an active transaction')
+        peer.sendall(b'\n')
+        with peer.makefile('r') as result:
+            assert any('backups' in line for line in result)
+    client.wait(api, job)
+
+
 def main():
     assert os.geteuid() == 0 and os.environ['DYLATHLEEN_TEST_CONTAINER'] == '1'
     base = Path(__file__).with_name('check-debget.py')
@@ -80,6 +105,7 @@ def main():
     policy.write_text('[fixture]\nIdentity=unix-user:tester\nAction=ru.konkere.dylathleen.manage\n'
                       'ResultAny=yes\nResultInactive=yes\nResultActive=yes\n')
     try:
+        concurrent_operations()
         fixtures.invoke = invoke
         with TemporaryDirectory() as folder:
             fixtures.test_removal(Path(folder))

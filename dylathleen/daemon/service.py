@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 import time
 from collections import OrderedDict
+from functools import wraps
 from threading import Thread
 
 import dbus
@@ -16,7 +17,22 @@ from dylathleen.daemon import inventory, operations, checks
 from dylathleen.daemon.protocol import ACTION, NAME, PATH
 from dylathleen.gems.debget.privileged import LIMIT, package, secure, atomic_file
 
-method = dbus.service.method
+def method(interface, *, in_signature, out_signature, **options):
+    def decorate(function):
+        @wraps(function)
+        def checked(self, *args, message, **kwargs):
+            # dbus-python advertises the input signature, but dispatches messages
+            # with other signatures too. Reject them before validation or Polkit.
+            if message.get_signature() != in_signature:
+                raise dbus.DBusException('Unexpected argument signature',
+                                         name='org.freedesktop.DBus.Error.InvalidArgs')
+            return function(self, *args, **kwargs)
+
+        return dbus.service.method(interface, in_signature=in_signature, out_signature=out_signature,
+                                   message_keyword='message', **options)(checked)
+    return decorate
+
+
 mutation = dict(sender_keyword='sender', async_callbacks=('success', 'failure'))
 
 
@@ -103,14 +119,14 @@ class Backend(dbus.service.Object):
             denied(error)
 
     @method(NAME, in_signature='', out_signature='a{sa{ss}}a{s(sss)}a{ss}as')
-    def GetInventory(self):
+    def GetInventory(self, message=None):
         data = inventory.load()
         bins = {k: {f: str(v).lower() if isinstance(v, bool) else str(v) for f, v in row.items()}
                 for k, row in data.get('bins', {}).items()}
         return bins, data.get('debget', {}), data.get('updates', {}), data.get('stale', [])
 
     @method(NAME, in_signature='u', out_signature='u', **mutation)
-    def ConfigureTimer(self, minutes, sender, success, failure):
+    def ConfigureTimer(self, minutes, sender, success, failure, message=None):
         minutes = int(minutes)
         if minutes and not 5 <= minutes <= 10080:
             raise ValueError('Check interval must be zero or 5 to 10080 minutes')
@@ -131,11 +147,11 @@ class Backend(dbus.service.Object):
         self.authorize(sender, success, failure, lambda: (self.start('timer', configure),))
 
     @method(NAME, in_signature='u', out_signature='sss')
-    def GetOperation(self, job):
+    def GetOperation(self, job, message=None):
         return self.jobs[int(job)]
 
     @method(NAME, in_signature='b', out_signature='u')
-    def Refresh(self, online):
+    def Refresh(self, online, message=None):
         if self.active and self.jobs[self.active][0] == 'refresh':
             self.want_online |= bool(online)
             return self.active
@@ -167,23 +183,23 @@ class Backend(dbus.service.Object):
             client.close()
 
     @method(NAME, in_signature='sas', out_signature='uh', **mutation)
-    def DebGet(self, action, packages, sender, success, failure):
+    def DebGet(self, action, packages, sender, success, failure, message=None):
         if action not in operations.ACTIONS or len(packages) != (0 if action in ('update', 'catalogue', 'upgrade') else 1):
             raise ValueError('Invalid deb-get operation')
         request = {'operation': 'native', 'action': action, 'packages': [package(p) for p in packages]}
         self.authorize(sender, success, failure, lambda: self.stream(request))
 
     @method(NAME, in_signature='sssss', out_signature='uh', **mutation)
-    def Recipe(self, action, name, expected, revision, source, sender, success, failure):
-        if action not in operations.RECIPES or len(source.encode()) > LIMIT:
+    def Recipe(self, action, name, expected, revision, source, sender, success, failure, message=None):
+        if action not in operations.RECIPES or len(source.encode()) > LIMIT or len(expected) > 64 or len(revision) > 64:
             raise ValueError('Invalid recipe operation')
         request = dict(operation=action, name=package(name), expected=expected or None, revision=revision, source=source)
         self.authorize(sender, success, failure, lambda: self.stream(request))
 
     @method(NAME, in_signature='ssa{ss}a{ss}sah', out_signature='u', **mutation)
-    def Bin(self, action, key, expected, entry, directory, files, sender, success, failure):
+    def Bin(self, action, key, expected, entry, directory, files, sender, success, failure, message=None):
         if (action not in ('install', 'update', 'pin', 'unpin', 'remove', 'migrate')
-                or len(files) != int(action in ('install', 'update')) or len(key) > 4096
+                or len(files) != int(action in ('install', 'update')) or max(len(key), len(directory)) > 4096
                 or any(k not in inventory.FIELDS or len(v) > 4096 for d in (entry, expected) for k, v in d.items())):
             raise ValueError('Invalid bin arguments')
         def unpack(fields):

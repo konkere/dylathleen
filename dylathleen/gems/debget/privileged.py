@@ -36,7 +36,7 @@ class DebGetError(Exception):
 
 
 def package(value):
-    if not isinstance(value, str) or not PKG.fullmatch(value):
+    if not isinstance(value, str) or len(value) > 255 or not PKG.fullmatch(value):
         raise DebGetError('Invalid deb-get package name.')
     return value
 

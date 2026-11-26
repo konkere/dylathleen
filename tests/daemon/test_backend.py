@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from threading import Event
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
 from dylathleen.daemon import checks, client, inventory
@@ -28,6 +28,23 @@ class CacheTest(unittest.TestCase):
         self.assertEqual(result['debget'], {'tool': ['3', 'installed', 'github']})
         self.assertEqual(result['updates'], {})
         self.assertEqual(result['stale'], ['debget:tool'])
+
+    def test_user_and_system_bin_rows_remain_independent(self):
+        from dylathleen.gems.bin.controller import BinManager
+        key = '/usr/local/bin/tool'
+        local = {key: {'path': key, 'version': '1'}}
+        public = {'bins': {key: {'path': key, 'version': '2'}}, 'updates': {'bin:' + key: '3'}}
+        manager = BinManager(SimpleNamespace(i18n={'bin.scope.user': 'user', 'bin.scope.system': 'system',
+                                                   'bin.check_failed': 'stale'}, logger=Mock()))
+        manager.registries[False] = Mock()
+        manager.registries[False].read.return_value = {'bins': local}
+        manager.launcher = Mock()
+        with patch('dylathleen.gems.bin.controller.is_root', return_value=False), \
+                patch.object(client, 'refresh', return_value=(public, 'Service unavailable')):
+            rows = manager._applications()
+        self.assertEqual([(r.id, r.version, r.latest_version) for r in rows],
+                         [('user:' + key, '1', '1'), ('system:' + key, '2', '3')])
+        self.assertIn('stale', rows[1].description)
 
     def test_registry_failure_preserves_entries(self):
         with patch.object(inventory.registry, 'transact', side_effect=ValueError):
@@ -72,6 +89,6 @@ class OperationTest(unittest.TestCase):
         backend.active = 1
         backend.jobs = {1: ('refresh', 'running', '')}
         backend.want_online = False
-        self.assertEqual(backend.Refresh(True), 1)
+        self.assertEqual(backend.Refresh(True, message=Mock(get_signature=lambda: 'b')), 1)
         with self.assertRaisesRegex(ValueError, 'running'):
             backend.start('bin', Mock())

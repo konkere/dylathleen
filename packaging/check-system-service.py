@@ -7,6 +7,7 @@ import socket
 import shutil
 import subprocess
 import sys
+import time
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -32,9 +33,9 @@ def version():
     return subprocess.check_output(['dpkg-query', '-Wf', '${Version}', 'dylathleen'], text=True)
 
 
-def detached_reinstall():
+def detached_upgrade():
     api = interface()
-    job, descriptor = api.DebGet('reinstall', ['dylathleen'], signature='sas')
+    job, descriptor = api.DebGet('upgrade-one', ['dylathleen'], signature='sas')
     with socket.socket(fileno=descriptor.take()) as peer, peer.makefile('r') as lines:
         peer.sendall(b'\n')
         for line in lines:
@@ -64,6 +65,19 @@ def guard_failures():
                     raise AssertionError('Guards on noexec were accepted')
         finally:
             subprocess.run(['umount', mount], check=True)
+    # A missing installed guard must also fail through the public transaction endpoint.
+    held = helper.GUARD.with_name('guard-test-backup')
+    helper.GUARD.rename(held)
+    try:
+        try:
+            backend.debget({'operation': 'native', 'action': 'reinstall', 'packages': ['dylathleen']},
+                           '', Watcher(), lambda _: True)
+        except OSError as error:
+            assert 'debget-guard' in str(error), error
+        else:
+            raise AssertionError('Missing guard was accepted')
+    finally:
+        held.rename(helper.GUARD)
     with TemporaryDirectory(dir='/usr/lib/dylathleen') as root:
         folder = Path(root)
         helper.install_guards(folder)
@@ -103,6 +117,32 @@ fi''')
         credential.unlink()
 
 
+def check_lifecycle(candidate, settings, before):
+    timer = 'dylathleen-refresh.timer'
+    subprocess.run(['dpkg', '-i', candidate], check=True)
+    assert subprocess.run(['systemctl', 'is-enabled', '--quiet', timer]).returncode != 0
+    service = 'dylathleend.service'
+    deadline = time.monotonic() + 90
+    while subprocess.run(['systemctl', 'is-active', '--quiet', service]).returncode == 0:
+        if time.monotonic() > deadline:
+            raise AssertionError('Daemon did not exit after the idle timeout')
+        time.sleep(2)
+    subprocess.run(['systemctl', 'mask', '--runtime', service], check=True)
+    try:
+        data, warning = refresh(False)
+        assert warning and 'debget' in data
+    finally:
+        subprocess.run(['systemctl', 'unmask', '--runtime', service], check=True)
+    subprocess.run(['dpkg', '--purge', 'dylathleen'], check=True)
+    assert settings.read_bytes() == before
+    assert not Path('/var/lib/dylathleen/inventory.json').exists()
+    subprocess.run(['dpkg', '-i', candidate], check=True)
+    assert settings.read_bytes() == before
+    subprocess.run(['systemctl', 'is-enabled', '--quiet', timer], check=True)
+    data, warning = refresh(False)
+    assert not warning and 'debget' in data
+
+
 def main(previous, candidate):
     assert os.geteuid() == 0 and os.environ['DYLATHLEEN_TEST_VM'] == '1'
     spec = importlib.util.spec_from_file_location('fixtures', Path(__file__).with_name('check-debget.py'))
@@ -129,8 +169,8 @@ def main(previous, candidate):
                                       f'http://127.0.0.1:{server.server_port}/{link.name}')
             recipe.write_text(source)
             fixtures.STATE.write_text('dylathleen 1 direct\n')
-            code, output = fixtures.invoke('install', 'dylathleen')
-            assert code == 0 and version() == expected, output
+            subprocess.run(['dpkg', '-i', candidate], check=True)
+            assert version() == expected and settings.read_bytes() == before
             # The candidate must have shown a real plan and honored a rejection
             # on a machine where /run may be mounted noexec.
             calls = []
@@ -140,8 +180,19 @@ def main(previous, candidate):
             except Cancelled:
                 pass
             assert calls and 'dylathleen' in calls[0]
-            detached_reinstall()
-            assert version() == expected and settings.read_bytes() == before
+            # Use the candidate's actual maintainer scripts and payload for a
+            # version-changing self-upgrade while the initiating client exits.
+            tree = folder / 'upgrade'
+            subprocess.run(['dpkg-deb', '-R', candidate, tree], check=True)
+            control = tree / 'DEBIAN/control'
+            next_version = expected + '+fixture1'
+            control.write_text(control.read_text().replace('Version: ' + expected + '\n',
+                                                            'Version: ' + next_version + '\n'))
+            upgraded = folder / 'dylathleen-upgrade.deb'
+            subprocess.run(['dpkg-deb', '-b', tree, upgraded], check=True)
+            recipe.write_text(source.replace(expected, next_version).replace(link.name, upgraded.name))
+            detached_upgrade()
+            assert version() == next_version and settings.read_bytes() == before
         finally:
             server.shutdown()
             server.server_close()
@@ -168,7 +219,9 @@ fi'''))
         wait(api, api.ConfigureTimer(minutes, signature='u'))
         enabled = subprocess.run(['systemctl', 'is-active', '--quiet', 'dylathleen-refresh.timer']).returncode == 0
         assert enabled == bool(minutes)
-    print('Upgrade, detached self-reinstall, isolated native check, stale cache, CLI changes and timer verified.')
+    check_lifecycle(candidate, settings, before)
+    print('Package purge/reinstall and idle exit verified.')
+    print('Upgrade, detached version-changing self-upgrade, isolated native check, stale cache, CLI changes and timer verified.')
 
 
 if __name__ == '__main__':
