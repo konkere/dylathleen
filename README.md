@@ -6,13 +6,13 @@ Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinif
 
 ## Install and run
 
-From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.6.0~test2-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
+Download the DEB from [GitHub Releases](https://github.com/konkere/dylathleen/releases/latest) and run `sudo apt install ./dylathleen_0.6.0-1_all.deb` in the download directory. To build from source, run `./packaging/build-deb` and install the DEB from `dist/`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user.
 
 Refresh to list installed software, search by name, select updates and review the confirmation before applying them. Use `dylathleen --offline` for local inventory, `dylathleen --settings` for format settings and `dylathleen-tray` for notifications. System Flatpak transactions use the system's authorization policy. Snap operations require snapd and may prompt for sudo. Configuration, installed AppImage data and caches use separate dylathleen directories. Existing bauh-managed AppImages are not automatically imported.
 
 ## System service
 
-The DEB includes the on-demand dylathleend service. Refresh checks system bin and deb-get alongside the user managers. An unavailable source leaves its last known data visible. The timer checks hourly by default. [Timer, credentials, system directories and security review](docs/system-service.md)
+The DEB includes the on-demand `dylathleend` service. Refresh checks system bin and deb-get alongside the user managers. An unavailable source leaves its last known data visible. The timer checks for updates hourly by default. System changes require Polkit authorization, and deb-get package transactions show the APT plan for confirmation. [Timer, credentials, system directories and security review](docs/system-service.md)
 
 ## bin
 
