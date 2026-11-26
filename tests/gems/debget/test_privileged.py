@@ -64,13 +64,23 @@ class AptBoundaryTest(TestCase):
                     helper.apt(['--autoremove', verb, 'fixture'])
                 commit.assert_not_called()
 
+    def test_missing_pre_dpkg_hook_stops_commit(self):
+        with (mock.patch.dict(os.environ, {'DG_ALLOWED': '["fixture"]', 'DG_ACTION': 'remove',
+                                          'DG_APT_HOOK': ''}), mock.patch.object(
+                subprocess, 'run', return_value=SimpleNamespace(returncode=0, stdout='Remv fixture [1]')),
+                mock.patch.object(subprocess, 'call') as commit):
+            with self.assertRaisesRegex(helper.DebGetError, 'hook'):
+                helper.apt(['remove', 'fixture'])
+            commit.assert_not_called()
+
     def test_approved_removal_uses_exact_name(self):
         for verb in ('remove', 'purge'):
             with self.subTest(verb=verb), mock.patch.dict(os.environ, {
-                'DG_ALLOWED': '["fixture"]', 'DG_ACTION': verb
+                'DG_ALLOWED': '["fixture"]', 'DG_ACTION': verb,
+                'DG_APT_HOOK': '/usr/bin/true', 'DG_HELPER': str(helper.__file__)
             }), mock.patch.object(subprocess, 'run', return_value=SimpleNamespace(
                 returncode=0, stdout='Remv fixture [1]\n'
-            )), mock.patch.object(helper, 'ask') as prompt, mock.patch.object(helper, 'emit'), \
+            )), mock.patch.object(helper, 'secure'), mock.patch.object(helper, 'ask') as prompt, mock.patch.object(helper, 'emit'), \
                     mock.patch.object(subprocess, 'call', return_value=0) as commit:
                 self.assertEqual(helper.apt(['--autoremove', verb, 'fixture']), 0)
                 self.assertEqual(commit.call_args.args[0][-2:], [verb, 'fixture'])

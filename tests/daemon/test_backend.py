@@ -62,8 +62,13 @@ class CacheTest(unittest.TestCase):
         self.assertTrue(allowed_source('https://releases.example.org/v2/tool', previous))
         self.assertFalse(allowed_source('https://other.example.org/v2/tool', previous))
         self.assertFalse(allowed_source(previous, None))
+        insecure = previous.replace('https://', 'http://')
+        self.assertFalse(allowed_source(insecure, insecure))
         self.assertFalse(allowed_source('https://github.com/new/tool', 'https://github.com/old/tool'))
         self.assertFalse(allowed_source(previous + '?token=private', previous))
+        gitlab = 'https://gitlab.com/group/subgroup/project/-/releases/'
+        self.assertTrue(allowed_source(gitlab + 'v2', gitlab + 'v1'))
+        self.assertFalse(allowed_source(gitlab.replace('/project/', '/other/') + 'v2', gitlab + 'v1'))
 
     def test_disallowed_install_directory(self):
         with self.assertRaises(ValueError):

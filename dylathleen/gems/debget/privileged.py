@@ -277,12 +277,15 @@ def apt(args):
     if command[0] == 'install':
         options.append('--no-remove')
     hook = os.environ.get('DG_APT_HOOK')
-    if hook:
-        secure(Path(hook))
-        options.extend(['-o', f'DPkg::Pre-Install-Pkgs::={hook}',
-                        '-o', f'DPkg::Tools::Options::{hook}::Version=2'])
-        env['DG_REMOVABLE'] = json.dumps(sorted(removable))
-        env['DG_HELPER'] = os.environ['DG_HELPER']
+    if not hook:
+        raise DebGetError('Missing APT transaction hook.')
+    secure(Path(hook))
+    if not os.access(hook, os.X_OK):
+        raise DebGetError('APT transaction hook is not executable.')
+    options.extend(['-o', f'DPkg::Pre-Install-Pkgs::={hook}',
+                    '-o', f'DPkg::Tools::Options::{hook}::Version=2'])
+    env['DG_REMOVABLE'] = json.dumps(sorted(removable))
+    env['DG_HELPER'] = os.environ['DG_HELPER']
     ask('transaction', plan='\n'.join(changes) or plan.stdout.strip())
     emit('apt-running')
     try:

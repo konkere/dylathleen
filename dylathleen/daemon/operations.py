@@ -8,7 +8,7 @@ import stat
 import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 from dylathleen.daemon.inventory import public_entry, FIELDS
 from dylathleen.gems.bin import registry
@@ -79,14 +79,18 @@ def allowed_source(url, previous):
         return False
     parsed = urlsplit(url if '://' in url else 'https://' + url)
     forge = parsed.scheme == 'https' and parsed.netloc in ('github.com', 'gitlab.com', 'codeberg.org')
-    if forge and not re.fullmatch(r'/[\w.-]+/[\w./%+~-]+', parsed.path):
+    if forge and (not re.fullmatch(r'/[\w.-]+/[\w./%+~-]+', parsed.path)
+                  or any(part in ('.', '..') for part in unquote(parsed.path).split('/'))
+                  or not all(re.fullmatch(r'[\w.-]+', part) for part in parsed.path.split('/')[1:3])):
         return False
     if not previous:
         return forge
     old = urlsplit(previous if '://' in previous else 'https://' + previous)
     if parsed.scheme == old.scheme == 'https' and parsed.netloc and parsed.netloc == old.netloc:
+        if parsed.netloc == 'gitlab.com':
+            return parsed.path.partition('/-/')[0].rstrip('/') == old.path.partition('/-/')[0].rstrip('/')
         return not forge or parsed.path.split('/')[:3] == old.path.split('/')[:3]
-    return url == previous
+    return False
 
 
 def bin_change(action, key, expected, entry, folder, artifact=None):
@@ -112,13 +116,13 @@ def bin_change(action, key, expected, entry, folder, artifact=None):
     if (public_entry(raw) if raw is not None else {}) != expected or (raw is None) != (action == 'install'):
         raise ValueError('System registry changed. Refresh and retry.')
     if action in ('install', 'update'):
+        required_seals = fcntl.F_SEAL_WRITE | fcntl.F_SEAL_GROW | fcntl.F_SEAL_SHRINK
         if (not artifact or not stat.S_ISREG(os.fstat(artifact.fileno()).st_mode)
                 or os.fstat(artifact.fileno()).st_size > 512 * 1024 * 1024
-                or fcntl.fcntl(artifact, fcntl.F_GET_SEALS) & fcntl.F_SEAL_WRITE == 0
-                or fcntl.fcntl(artifact, fcntl.F_GET_SEALS) & fcntl.F_SEAL_GROW == 0):
+                or fcntl.fcntl(artifact, fcntl.F_GET_SEALS) & required_seals != required_seals):
             raise ValueError('Expected an immutable binary artifact')
         if (not re.fullmatch('[0-9a-f]{64}', entry.get('hash', '')) or set(entry) - FIELDS
-                or not allowed_source(entry.get('url', ''), expected.get('url'))):
+                or not allowed_source(entry.get('url', ''), (raw or {}).get('url'))):
             raise ValueError('Invalid binary metadata or repository')
         if action == 'install' and target.parent != Path(folder):
             raise ValueError('Destination does not match installation directory')
