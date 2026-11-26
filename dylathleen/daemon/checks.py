@@ -54,8 +54,9 @@ def isolated_checks(data, folder):
         if binary:
             # The directory is root-only, and the bind source is always a
             # fixed path without systemd escaping or user-controlled syntax.
-            shutil.copyfile(binary, folder / 'bin')
-            (folder / 'bin').chmod(0o555)
+            # Bind the validated executable from its own filesystem. /run
+            # may be noexec even though the registered binary is executable.
+            (folder / 'bin').symlink_to(binary)
             properties.append(f'BindReadOnlyPaths={folder}/bin:/run/dylathleen-bin')
     cmd = ['/usr/bin/systemd-run', '--quiet', '--pipe', '--wait', '--collect', '--service-type=exec',
            *('--property=' + prop for prop in properties), WORKER]

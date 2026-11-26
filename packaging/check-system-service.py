@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import contextmanager
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -49,22 +50,27 @@ def detached_upgrade():
     wait(interface(), job)
 
 
-def guard_failures():
-    from dylathleen.gems.debget import privileged as helper
-    # This mounted filesystem exercises execve denial even when the mode is 0755.
+@contextmanager
+def noexec_directory():
     with TemporaryDirectory() as root:
         mount = Path(root)
         subprocess.run(['mount', '-t', 'tmpfs', '-o', 'noexec', 'none', mount], check=True)
         try:
             with TemporaryDirectory(dir=mount) as folder:
-                try:
-                    helper.install_guards(Path(folder))
-                except PermissionError:
-                    pass
-                else:
-                    raise AssertionError('Guards on noexec were accepted')
+                yield Path(folder)
         finally:
             subprocess.run(['umount', mount], check=True)
+
+
+def guard_failures():
+    from dylathleen.gems.debget import privileged as helper
+    with noexec_directory() as folder:
+        try:
+            helper.install_guards(folder)
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError('Guards on noexec were accepted')
     # A missing installed guard must also fail through the public transaction endpoint.
     held = helper.GUARD.with_name('guard-test-backup')
     helper.GUARD.rename(held)
@@ -127,7 +133,7 @@ def relocated_bin_check():
     server.fail_checks = False
     Thread(target=server.serve_forever, daemon=True).start()
     try:
-        with TemporaryDirectory(dir='/opt') as root, TemporaryDirectory(dir='/run') as temp:
+        with TemporaryDirectory(dir='/opt') as root, noexec_directory() as folder:
             directory = Path(root)
             directory.chmod(0o755)
             relocated = directory / 'bin'
@@ -143,7 +149,6 @@ def relocated_bin_check():
                 entries = {str(relocated): {'pinned': True}, key: {'path': key, 'version': 'v1.0.0',
                            'provider': 'github', 'url': 'https://github.com/example/tool/releases/tag/v1.0.0'}}
                 data = {'bins': entries}
-                folder = Path(temp)
                 checks.snapshot(data, folder)
                 assert checks.installed_bin(entries) == relocated
                 report = checks.isolated_checks(data, folder)
