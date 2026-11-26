@@ -6,15 +6,19 @@ Dylath-Leen is an independently modified fork of [bauh](https://github.com/vinif
 
 ## Install and run
 
-From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.5.0-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
+From a source checkout run `./packaging/build-deb` (requires dpkg-deb, tar and standard GNU tools). Install the resulting file with `sudo apt install ./dist/dylathleen_0.6.0~test1-1_all.deb`. Open **Dylath-Leen** from the desktop menu or run `dylathleen` as your regular user. For a downloaded DEB, run apt in its directory with `./` before its filename. No pip, virtual environment or AppImage launcher is needed.
 
 Refresh to list installed software, search by name, select updates and review the confirmation before applying them. Use `dylathleen --offline` for local inventory, `dylathleen --settings` for format settings and `dylathleen-tray` for notifications. System Flatpak transactions use the system's authorization policy. Snap operations require snapd and may prompt for sudo. Configuration, installed AppImage data and caches use separate dylathleen directories. Existing bauh-managed AppImages are not automatically imported.
+
+## System service
+
+The DEB includes the on-demand dylathleend service. Refresh checks system bin and deb-get alongside the user managers. An unavailable source leaves its last known data visible. The timer checks hourly by default. [Timer, credentials, system directories and security review](docs/system-service.md)
 
 ## bin
 
 Install [marcosnils/bin](https://github.com/marcosnils/bin/releases) v0.29.4 or later and make it available in `PATH` or in one of the configured bin directories. Open **Actions → Install from a repository (bin)** and enter the HTTPS repository URL. The dialog supports GitHub, Codeberg and GitLab release attachments for `owner/repo` URLs. Pick a release (the latest stable one is selected initially), a file for your OS and architecture, and, when prompted, the executable inside the archive. Sources, checksums and signatures are filtered out. GitLab assets exposed only through the package registry or release descriptions can be installed with the CLI.
 
-Choose a user installation (`~/.local/bin` by default) or a system installation (`/usr/local/bin`). The table shows both scopes and exposes pin and unpin in the row menu. If the root registry is locked, use **Actions → Read the system bin registry** to authorize access through sudo. Dylath-Leen keeps the last system inventory in memory for the session. Downloads and bin commands run as the desktop user, and system filesystem changes use a separate privileged helper. The helper requires system destinations with root-owned, non-group/world-writable directory components.
+Choose a user installation (`~/.local/bin` by default) or a system installation (`/usr/local/bin`). The table shows both scopes and exposes pin and unpin in the row menu. System entries appear automatically. Release downloads run as the desktop user and dylathleend commits system changes after Polkit authorization.
 
 Edit the directories in **Settings → bin** to move the files registered in each changed scope. The migration updates absolute paths and the CLI's default directory. A destination conflict or a locally replaced binary stops that scope's migration. If you change both fields, each scope is saved independently. Add the destination to your shell's `PATH` to launch commands by name after moving them.
 

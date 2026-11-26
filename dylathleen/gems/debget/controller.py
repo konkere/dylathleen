@@ -15,6 +15,7 @@ from dylathleen.api.abstract.controller import SearchResult, SettingsController,
 from dylathleen.api.abstract.model import PackageUpdate
 from dylathleen.api.abstract.view import (FileChooserComponent, FormComponent, InputOption, MessageType, MultipleSelectComponent,
                                           PanelComponent, SelectViewType, SingleSelectComponent, TextInputComponent, TextInputType)
+from dylathleen.daemon import client as backend
 from dylathleen.api.paths import CONFIG_DIR, CACHE_DIR
 from dylathleen.commons.app_launch import ApplicationLauncher
 from dylathleen.commons.desktop_entry import DesktopCatalogue
@@ -37,6 +38,9 @@ class DebGetManager(SoftwareManager, SettingsController):
         self.version = None
         self.version_at = 0
         self.updates = {}
+        self.system_snapshot = {}
+        self.stale = set()
+        self.inventory_warning = None
         self.resolved = {}
         self.last_check = 0
         self.official_notified = set()
@@ -94,7 +98,13 @@ class DebGetManager(SoftwareManager, SettingsController):
             return SETTINGS.copy()
 
     def _apps(self, read_launch=True):
-        recipes, registry, statuses = catalogue.inventory()
+        if 'debget' in self.system_snapshot:
+            recipes = catalogue.read_catalogue()
+            state = self.system_snapshot['debget']
+            registry = {name: row[2] for name, row in state.items()}
+            statuses = {name: row[:2] for name, row in state.items()}
+        else:
+            recipes, registry, statuses = catalogue.inventory()
         arch, codename, distro = catalogue.machine()
         settings = self._config()
         with self.lock:
@@ -110,6 +120,9 @@ class DebGetManager(SoftwareManager, SettingsController):
                 if status and available == status[0]:
                     available = None
                 result.append(DebGetApplication(name, recipe, status, registry.get(name), available, self.actions, compatible))
+        for app in result:
+            if app.installed and (self.inventory_warning or 'debget:' + app.deb_name in self.stale):
+                app.description = (app.description or '') + ' · ' + self.i18n['debget.stale']
         installed = [app for app in result if app.installed] if read_launch else []
         if installed:
             desktops = DesktopCatalogue()
@@ -131,9 +144,19 @@ class DebGetManager(SoftwareManager, SettingsController):
             self.logger.warning('deb-get: %s', error)
             return []
 
+    def _refresh(self, online):
+        data, warning = backend.refresh(online)
+        with self.lock:
+            self.inventory_warning = warning or data.get('errors', {}).get('debget')
+            self.stale = set(data.get('stale', ()))
+            self.system_snapshot = data
+            if 'updates' in data:
+                self.updates = {k[7:]: v for k, v in data['updates'].items() if k.startswith('debget:')}
+
     def read_installed(self, disk_loader, limit, only_apps, pkg_types, internet_available):
         if pkg_types and DebGetApplication not in pkg_types:
             return SearchResult.empty()
+        self._refresh(internet_available)
         apps = [p for p in self._read_apps() if p.installed]
         if limit > 0:
             apps = apps[:limit]
@@ -150,13 +173,12 @@ class DebGetManager(SoftwareManager, SettingsController):
     def list_updates(self, internet_available):
         if not internet_available:
             return []
+        self._refresh(True)
         return [PackageUpdate(p.id, p.latest_version, p.get_type(), p.name)
                 for p in self._read_apps(read_launch=False) if p.update]
 
     def list_warnings(self, internet_available):
-        if self.warning:
-            return [escape(self.warning)]
-        return []
+        return [escape(msg) for msg in (self.warning, self.inventory_warning) if msg]
 
     def get_info(self, pkg):
         source = pkg.recipe.fields if pkg.recipe else {}
@@ -358,7 +380,6 @@ class DebGetManager(SoftwareManager, SettingsController):
             return False
         except FAILURES as error:
             if command == 'update':
-                self.updates.clear()
                 self.warning = str(error)
             self._error(watcher, error)
             return False

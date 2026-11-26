@@ -7,7 +7,7 @@ import json
 import os
 import pwd
 import re
-import shlex
+import shutil
 import signal
 import stat
 import subprocess
@@ -18,6 +18,9 @@ from tempfile import NamedTemporaryFile, TemporaryDirectory
 from urllib.parse import urlsplit
 
 NATIVE = '/usr/bin/deb-get'
+AUDITED_SHA256 = '12d59a3c463a4bd07576dca3b4e15f8258f929c736fed45e72dd1496ae0f1187'
+GUARD = Path('/usr/lib/dylathleen/debget-guard')
+GUARDED = ('apt-get', 'apt', 'aptitude', 'wget', 'apt-hook')
 ROOT = Path('/etc/deb-get')
 CACHE = Path('/var/cache/deb-get')
 PKG = re.compile(r'[a-z0-9][a-z0-9+.-]+\Z')
@@ -279,6 +282,7 @@ def apt(args):
         options.extend(['-o', f'DPkg::Pre-Install-Pkgs::={hook}',
                         '-o', f'DPkg::Tools::Options::{hook}::Version=2'])
         env['DG_REMOVABLE'] = json.dumps(sorted(removable))
+        env['DG_HELPER'] = os.environ['DG_HELPER']
     ask('transaction', plan='\n'.join(changes) or plan.stdout.strip())
     emit('apt-running')
     try:
@@ -305,9 +309,39 @@ def check_apt_hook(lines, removable):
 def wget(args):
     args = [arg for arg in args if arg]
     config = os.environ.get('DG_WGET_CONFIG')
-    if config and any(not arg.startswith('-') and urlsplit(arg).netloc == 'api.github.com' for arg in args):
-        args = ['--config=' + config, *args]
+    urls = [urlsplit(arg) for arg in args if '://' in arg]
+    if config and len(urls) == 1 and (urls[0].scheme, urls[0].netloc) == ('https', 'api.github.com'):
+        args = ['--config=' + config, '--max-redirect=0', *args]
     return subprocess.call(['/usr/bin/wget', *args], env=ENV)
+
+
+def verify_native():
+    secure(Path(NATIVE))
+    if hashlib.sha256(Path(NATIVE).read_bytes()).hexdigest() != AUDITED_SHA256:
+        raise DebGetError('The installed deb-get script differs from the audited 0.4.7 package.')
+
+
+def install_guards(folder):
+    secure(GUARD)
+    if not os.access(GUARD, os.X_OK):
+        raise DebGetError('The installed deb-get guard cannot execute.')
+    # The native script gets one private search path. Removal, EACCES or
+    # ENOEXEC of any guard cannot reveal another apt-get further down PATH.
+    for name in GUARDED:
+        path = folder / name
+        shutil.copyfile(GUARD, path)
+        path.chmod(0o700)
+    for directory in ('/usr/sbin', '/usr/bin'):
+        for tool in Path(directory).iterdir():
+            path = folder / tool.name
+            if tool.name not in GUARDED and not path.is_symlink() and not path.exists():
+                path.symlink_to(tool)
+    env = {**ENV, 'PATH': str(folder), 'DG_HELPER': str(Path(__file__).resolve())}
+    for name in GUARDED:
+        probe = subprocess.run([str(folder / name), '--dylathleen-probe'], env=env, capture_output=True,
+                               stdin=subprocess.DEVNULL, text=True, timeout=10)
+        if probe.returncode or probe.stdout.strip() != name:
+            raise DebGetError('Failed to verify deb-get transaction guard: ' + name)
 
 
 def native_request(request):
@@ -327,7 +361,7 @@ def native_request(request):
             raise DebGetError('The recipe no longer exists in the deb-get catalogue.')
     else:
         raise DebGetError('Unsupported deb-get command.')
-    secure(Path(NATIVE))
+    verify_native()
     if (ROOT / 'installed').exists():
         secure(ROOT / 'installed')
     # Bypass PATH wrappers, so options and credentials are supplied exactly once.
@@ -343,20 +377,22 @@ def native_request(request):
     token = request.get('token', '')
     if token and not re.fullmatch(r'[a-zA-Z0-9_-]{1,512}', token):
         raise DebGetError('Invalid DEBGET_TOKEN format.')
-    with TemporaryDirectory(prefix='dylathleen-debget-', dir='/run') as directory:
+    # /run can be mounted noexec. Keep a private copy of the executable guards
+    # on the package filesystem so a self-update or removal cannot replace them.
+    guard_root = Path('/usr/lib/dylathleen')
+    secure(guard_root, directory=True)
+    with TemporaryDirectory(prefix='.debget-', dir=guard_root) as directory:
         folder = Path(directory)
         if token:
             secret = folder / 'wgetrc'
             atomic_file(secret, f'header = Authorization: token {token}\n', 0o600)
-        for executable in ('apt-get', 'apt', 'aptitude', 'wget', 'apt-hook'):
-            path = folder / executable
-            module = shlex.quote(str(Path(__file__).resolve()))
-            path.write_text(f'#!/bin/sh\nexec /usr/bin/python3 -I {module} {executable} "$@"\n')
-            path.chmod(0o700)
-        env = {**ENV, 'PATH': str(folder) + ':' + ENV['PATH'], 'DG_ALLOWED': json.dumps(sorted(allowed)),
-               'DG_ACTION': action, 'DG_WGET_CONFIG': str(folder / 'wgetrc') if token else '',
+        tools = folder / 'bin'
+        tools.mkdir(mode=0o700)
+        install_guards(tools)
+        env = {**ENV, 'PATH': str(tools), 'DG_ALLOWED': json.dumps(sorted(allowed)),
+               'DG_ACTION': action, 'DG_HELPER': str(Path(__file__).resolve()), 'DG_WGET_CONFIG': str(folder / 'wgetrc') if token else '',
                'DG_FAILURE_FILE': str(folder / 'failed'), 'DG_CONTROL': f'/proc/{os.getpid()}/fd/0',
-               'DG_APT_HOOK': str(folder / 'apt-hook')}
+               'DG_APT_HOOK': str(tools / 'apt-hook')}
         if action in {'update', 'catalogue', 'show'}:
             env['DEBGET_CACHE_RTN'] = '0' if action in {'update', 'catalogue'} else '60'
         if action == 'reinstall' and state.get(names[0]) in {'github', 'gitlab', 'website'}:
@@ -419,6 +455,9 @@ def main():
     if os.geteuid() != 0:
         raise DebGetError('This helper requires administrator privileges.')
     if len(sys.argv) > 1:
+        if sys.argv[1] in GUARDED and sys.argv[2:] == ['--dylathleen-probe']:
+            print(sys.argv[1])
+            return 0
         if sys.argv[1] in {'apt-get', 'apt'}:
             return apt(sys.argv[2:])
         if sys.argv[1] == 'wget':

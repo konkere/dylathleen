@@ -1,3 +1,9 @@
+# Dylath-Leen 0.6.0 test build — 2026-11-26
+
+- Added on-demand system bin and deb-get operations over D-Bus with Polkit authorization.
+- Refresh now reads both bin registries and checks registered deb-get packages. System checks use an isolated worker, an hourly timer and a persistent last-known inventory.
+- Packaged and verified the APT guards on an executable filesystem for systems with a noexec runtime directory.
+
 # Dylath-Leen 0.5.0 — 2026-11-24
 
 - Added a deb-get catalogue and package operations, with transaction previews and package-scoped removal and purge.

@@ -92,3 +92,4 @@ debget.no_matches=No recipes match the filter.
 debget.all_catalogues=All catalogues
 debget.unsupported_version=Installed deb-get {}. Privileged operations require the audited version 0.4.7.
 debget.recipe.resolve=Resolve a local recipe with deb-get
+debget.stale=Last known data

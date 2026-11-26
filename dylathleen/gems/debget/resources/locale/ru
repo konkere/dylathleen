@@ -92,3 +92,4 @@ debget.no_matches=Подходящие рецепты не найдены.
 debget.all_catalogues=Все каталоги
 debget.unsupported_version=Установлен deb-get {}. Для действий с повышением прав нужна проверенная версия 0.4.7.
 debget.recipe.resolve=Проверить разрешение локального рецепта через deb-get
+debget.stale=Последние известные данные

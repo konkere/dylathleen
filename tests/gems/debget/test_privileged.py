@@ -84,6 +84,8 @@ class AptBoundaryTest(TestCase):
                 self.subTest(verb=verb),
                 mock.patch.object(helper, 'secure'),
                 mock.patch.object(helper, 'check_native_paths'),
+                mock.patch.object(helper, 'install_guards'),
+                mock.patch.object(helper, 'verify_native'),
                 mock.patch.object(helper, 'registered', return_value={}),
                 mock.patch.object(subprocess, 'check_output', return_value='0.4.7\n') as version,
                 mock.patch.object(helper, 'TemporaryDirectory', return_value=TemporaryDirectory()),
@@ -98,6 +100,17 @@ class AptBoundaryTest(TestCase):
                     self.assertEqual(env['DEBGET_CACHE_RTN'], '0')
                 self.assertNotIn('fake_token', str(env))
                 self.assertEqual(version.call_args.args[0][0], '/usr/bin/deb-get')
+
+    def test_missing_guard_never_invokes_debget(self):
+        with (mock.patch.object(helper, 'GUARD', Path('/missing/dylathleen/guard')),
+              mock.patch.object(helper, 'secure'), mock.patch.object(helper, 'check_native_paths'),
+              mock.patch.object(helper, 'verify_native'), mock.patch.object(helper, 'registered', return_value={}),
+              mock.patch.object(subprocess, 'check_output', return_value='0.4.7'),
+              mock.patch.object(helper, 'TemporaryDirectory', return_value=TemporaryDirectory()),
+              mock.patch.object(helper, 'run_native') as native):
+            with self.assertRaises(helper.DebGetError):
+                helper.native_request({'action': 'upgrade', 'packages': []})
+            native.assert_not_called()
 
     def test_final_plan_cannot_remove_unrelated_package(self):
         lines = ['VERSION 2\n', 'name=value\n', '\n', 'fixture 1 > - **REMOVE**\n']

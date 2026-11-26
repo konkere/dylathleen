@@ -196,7 +196,8 @@ class AppLaunchTest(TestCase):
         manager = DebGetManager(SimpleNamespace(i18n=self.i18n, logger=logging.getLogger(__name__)))
         manager.launcher = self.launcher
         manager.settings_path = self.root / 'debget.json'
-        with patch.object(catalogue, 'inventory', return_value=({'sample-app': [recipe]}, {'sample-app': 'github'},
+        with patch('dylathleen.gems.debget.controller.backend.refresh', return_value=({}, '')), \
+             patch.object(catalogue, 'inventory', return_value=({'sample-app': [recipe]}, {'sample-app': 'github'},
                                                                  {'sample-app': ('1', 'installed')})), \
              patch.object(catalogue, 'read_catalogue', return_value={'sample-app': [recipe]}), \
              patch.object(catalogue, 'machine', return_value=('amd64', 'jammy', 'ubuntu')), \

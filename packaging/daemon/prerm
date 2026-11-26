@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+if [ "$1" = remove ] && [ -d /run/systemd/system ]; then
+    deb-systemd-invoke stop dylathleen-refresh.timer
+    # The running daemon owns any active dpkg transaction and exits when idle.
+fi

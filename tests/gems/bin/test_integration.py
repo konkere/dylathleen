@@ -137,7 +137,7 @@ class ExitCodeTest(unittest.TestCase):
 
 @unittest.skipUnless(shutil.which('bin'), 'marcosnils/bin is not installed')
 class BinIntegrationTest(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, live_backend=False):
         result = subprocess.run(['bin', '--version'], capture_output=True, text=True)
         if not result.stdout.startswith('bin version '):
             self.skipTest('marcosnils/bin is not installed')
@@ -167,7 +167,9 @@ class BinIntegrationTest(unittest.TestCase):
                                                   logger=logging.getLogger(__name__)))
         self.manager.settings_path = self.root / 'settings.json'
         self.manager.launcher.profiles = LaunchProfiles(self.root / 'launch.json')
-        self.manager.registries[True] = SimpleNamespace(read=lambda: {'bins': {}})
+        self.manager.check_cache = self.root / 'bin-updates.json'
+        if not live_backend:
+            self.enterContext(patch('dylathleen.gems.bin.controller.backend.refresh', return_value=({}, '')))
         self.watcher = Watcher()
         self.binary = self.root / '.local/bin/tool'
 

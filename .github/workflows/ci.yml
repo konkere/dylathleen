@@ -53,10 +53,12 @@ jobs:
           echo '8164b6019a10f0c8ffd91f347f4bf198d4a08ef036fd9cdddf2c9c4cdc6017ca  /tmp/deb-get.deb' | sha256sum -c
           dpkg-deb -x /tmp/deb-get.deb /tmp/debget-native
           install -m755 /tmp/debget-native/usr/bin/deb-get /usr/bin/deb-get
-          install -m440 /dev/null /etc/sudoers.d/dylathleen-ci
-          echo 'tester ALL=(root) NOPASSWD: ALL' > /etc/sudoers.d/dylathleen-ci
+          install -m755 /tmp/dylathleen-bin/bin /usr/local/bin/bin
+          mkdir -p /run/dbus
+          dbus-uuidgen --ensure
+          test -S /run/dbus/system_bus_socket || dbus-daemon --system --fork
           cd /tmp
-          DYLATHLEEN_TEST_CONTAINER=1 PYTHONPATH=/usr/lib/dylathleen python3 "$GITHUB_WORKSPACE/packaging/check-debget.py"
+          DYLATHLEEN_TEST_CONTAINER=1 PYTHONPATH="/usr/lib/dylathleen:$GITHUB_WORKSPACE" python3 "$GITHUB_WORKSPACE/packaging/check-backend.py"
   flatpak:
     runs-on: ubuntu-24.04
     steps:
@@ -66,3 +68,23 @@ jobs:
           ./packaging/build-deb
           sudo apt-get install -y ./dist/*.deb
           PYTHONPATH=. /usr/bin/python3 packaging/check-flatpak.py
+  system-service:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dylathleen-deb
+          path: dist
+      - name: Verify package lifecycle on a booted system
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ./dist/*.deb jq wget curl lsb-release distro-info-data gpg
+          curl -fsSL --retry 3 https://github.com/wimpysworld/deb-get/releases/download/0.4.7/deb-get_0.4.7-1_all.deb -o /tmp/deb-get.deb
+          echo '8164b6019a10f0c8ffd91f347f4bf198d4a08ef036fd9cdddf2c9c4cdc6017ca  /tmp/deb-get.deb' | sha256sum -c
+          dpkg-deb -x /tmp/deb-get.deb /tmp/native
+          sudo install /tmp/native/usr/bin/deb-get /usr/bin/deb-get
+          curl -fsSL --retry 3 https://github.com/konkere/dylathleen/releases/download/v0.5.0/dylathleen_0.5.0-1_all.deb -o /tmp/previous.deb
+          echo 'f38eaf4a51cb976580b664db365d8855c0411e8fb2945a0a94c6bad860de32ad  /tmp/previous.deb' | sha256sum -c
+          sudo env DYLATHLEEN_TEST_VM=1 PYTHONPATH=/usr/lib/dylathleen /usr/bin/python3 packaging/check-system-service.py /tmp/previous.deb dist/*.deb

@@ -137,6 +137,8 @@ def installed_versions(names):
         return {}
     result = subprocess.run(['/usr/bin/dpkg-query', '-W', '-f=${Package}\t${Version}\t${db:Status-Status}\n', '--', *names],
                             stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=10)
+    if result.returncode not in (0, 1):
+        raise DebGetError('Could not read installed package versions from dpkg.')
     statuses = {}
     for line in result.stdout.splitlines():
         parts = line.split('\t')

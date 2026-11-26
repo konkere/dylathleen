@@ -12,15 +12,17 @@ mkdir -p "$lib" "$stage/usr/bin" "$output_dir"
 tar --exclude='__pycache__' --exclude='*.pyc' -cf "$stage/code.tar" dylathleen
 tar -xf "$stage/code.tar" -C "$lib"
 rm "$stage/code.tar"
-for command in dylathleen dylathleen-tray dylathleen-cli; do
+for command in dylathleen dylathleen-tray dylathleen-cli dylathleend; do
     case "$command" in
         dylathleen) entry='from dylathleen.app import main' ;;
         dylathleen-tray) entry='from dylathleen.app import tray as main' ;;
+        dylathleend) entry='from dylathleen.daemon.service import main' ;;
         dylathleen-cli) entry='from dylathleen.cli.app import main' ;;
     esac
     cat > "$stage/usr/bin/$command" <<LAUNCH
 #!/usr/bin/python3 -I
 import sys
+sys.dont_write_bytecode = True
 sys.path.insert(0, '/usr/lib/dylathleen')
 $entry
 main()
@@ -39,8 +41,27 @@ done
 doc="$stage/usr/share/doc/dylathleen"
 install -Dm644 LICENSE "$doc/copyright"
 install -m644 README.md README.ru.md CHANGELOG.md "$doc/"
-install -m644 docs/deb-get.md "$doc/"
+install -m644 docs/system-service.md docs/deb-get.md "$doc/"
 find "$stage" -type d -exec chmod 755 {} +
 find "$lib" -type f -exec chmod 644 {} +
+cat > "$lib/check-updates" <<'LAUNCH'
+#!/usr/bin/python3 -I
+import sys
+sys.dont_write_bytecode = True
+sys.path.insert(0, '/usr/lib/dylathleen')
+from dylathleen.daemon.checks import main
+main()
+LAUNCH
+chmod 755 "$lib/check-updates"
+install -m755 packaging/daemon/debget-guard "$lib/debget-guard"
+for unit in dylathleend.service dylathleen-refresh.service dylathleen-refresh.timer; do
+    install -Dm644 "packaging/daemon/$unit" "$stage/lib/systemd/system/$unit"
+done
+for script in postinst prerm postrm; do
+    install -m755 "packaging/daemon/$script" "$stage/DEBIAN/$script"
+done
+install -Dm644 packaging/daemon/ru.konkere.DylathLeen1.service "$stage/usr/share/dbus-1/system-services/ru.konkere.DylathLeen1.service"
+install -Dm644 packaging/daemon/ru.konkere.DylathLeen1.conf "$stage/usr/share/dbus-1/system.d/ru.konkere.DylathLeen1.conf"
+install -Dm644 packaging/daemon/ru.konkere.dylathleen.policy "$stage/usr/share/polkit-1/actions/ru.konkere.dylathleen.policy"
 find "$stage" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
 dpkg-deb --root-owner-group -Zxz --build "$stage" "$output_dir/"

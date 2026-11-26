@@ -1,0 +1,10 @@
+[Unit]
+Description=Dylath-Leen system package service
+
+[Service]
+Type=dbus
+BusName=ru.konkere.DylathLeen1
+ExecStart=/usr/bin/dylathleend
+StateDirectory=dylathleen
+StateDirectoryMode=0755
+PrivateTmp=yes

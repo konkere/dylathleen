@@ -1,0 +1,7 @@
+<policyconfig>
+  <action id="ru.konkere.dylathleen.manage">
+    <description>Manage system applications and executable package recipes</description>
+    <message>Administrator authentication is required to change Dylath-Leen system packages or settings</message>
+    <defaults><allow_any>auth_admin</allow_any><allow_inactive>auth_admin</allow_inactive><allow_active>auth_admin</allow_active></defaults>
+  </action>
+</policyconfig>

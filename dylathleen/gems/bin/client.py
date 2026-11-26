@@ -2,23 +2,17 @@
 import json
 import os
 import re
-import shutil
 import signal
 import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from tempfile import TemporaryDirectory, TemporaryFile
+from tempfile import TemporaryDirectory
 
-from dylathleen.commons.system import password_input
 from dylathleen.gems.bin.registry import BinError, config_path, read_registry, transact
 
 
 class ChoiceRequired(BinError):
-    pass
-
-
-class SystemAccessRequired(BinError):
     pass
 
 
@@ -123,34 +117,16 @@ class BinRegistry:
             with artifact.open('rb') as source:
                 return transact(config_path(), request, source)
 
-        helper = str(Path(__file__).with_name('registry.py').resolve())
-        command = ['/usr/bin/python3', '-I', helper]
-        elevated = os.geteuid() != 0
-        if elevated:
-            command = ['sudo', '-n', '-H', '--', *command]
-
-        with TemporaryFile() as payload:
-            payload.write(json.dumps(request).encode() + b'\n')
-            if artifact is not None:
-                with artifact.open('rb') as source:
-                    shutil.copyfileobj(source, payload)
-            payload.seek(0)
-            result = subprocess.run(command, stdin=payload, capture_output=True, timeout=180)
-            if elevated and not result.stdout and isinstance(password, str):
-                with password_input(password) as stdin:
-                    auth = subprocess.run(['sudo', '-S', '-v'], stdin=stdin, capture_output=True, timeout=30)
-                if auth.returncode == 0:
-                    payload.seek(0)
-                    result = subprocess.run(command, stdin=payload, capture_output=True, timeout=180)
-                else:
-                    result = auth
-
-        if elevated and not result.stdout:
-            raise SystemAccessRequired(result.stderr.decode(errors='replace').strip())
-        response = json.loads(result.stdout)
-        if result.returncode:
-            raise BinError(response['error'])
-        return response['registry']
+        from dylathleen.daemon.client import change_bin, refresh
+        try:
+            if request['operation'] == 'read':
+                data, error = refresh(False)
+                if error:
+                    raise BinError(error)
+                return {'bins': data.get('bins', {})}
+            return change_bin(request, artifact)
+        except Exception as error:
+            raise BinError(str(error)) from error
 
     def read(self, password=None):
         return self._call({'operation': 'read'}, password=password)

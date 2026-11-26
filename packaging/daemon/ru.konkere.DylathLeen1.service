@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=ru.konkere.DylathLeen1
+Exec=/usr/bin/dylathleend
+User=root
+SystemdService=dylathleend.service

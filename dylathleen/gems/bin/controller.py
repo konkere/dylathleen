@@ -1,6 +1,8 @@
 import json
 import shutil
 import subprocess
+import time
+import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from html import escape
@@ -14,11 +16,12 @@ import requests
 from dylathleen.api.abstract.controller import SearchResult, SettingsController, SettingsView, SoftwareManager, TransactionResult
 from dylathleen.api.abstract.model import CustomSoftwareAction, PackageUpdate
 from dylathleen.api.abstract.view import FormComponent, InputOption, MessageType, PanelComponent, SelectViewType, SingleSelectComponent, TextInputComponent
-from dylathleen.api.paths import CONFIG_DIR
+from dylathleen.daemon import client as backend
+from dylathleen.api.paths import CONFIG_DIR, CACHE_DIR
 from dylathleen.api.user import is_root
 from dylathleen.commons.app_launch import ApplicationLauncher
 from dylathleen.commons.desktop_entry import DesktopCatalogue
-from dylathleen.gems.bin.client import BinCommand, BinRegistry, ChoiceRequired, SystemAccessRequired
+from dylathleen.gems.bin.client import BinCommand, BinRegistry, ChoiceRequired
 from dylathleen.gems.bin.model import ICON, BinApplication
 from dylathleen.gems.bin.registry import BinError, absolute_path, write_json
 from dylathleen.gems.bin.releases import Repository, same_variant
@@ -42,6 +45,8 @@ class BinManager(SoftwareManager, SettingsController):
         self.registries = {system: BinRegistry(system) for system in (False, True)}
         self.settings_path = Path(CONFIG_DIR) / 'bin.json'
         self.lock = RLock()
+        self.check_cache = Path(CACHE_DIR) / "bin-updates.json"
+        self.check_lock = RLock()
         self.system_entries = {}
         self.registry_errors = {}
         self.update_errors = {}
@@ -93,9 +98,6 @@ class BinManager(SoftwareManager, SettingsController):
     def _read(self, system):
         try:
             entries = self.registries[system].read()['bins']
-        except SystemAccessRequired:
-            self.registry_errors.pop(system, None)
-            return self.system_entries
         except FAILURES as error:
             self.registry_errors[system] = str(error)
             self._warn(error)
@@ -105,11 +107,30 @@ class BinManager(SoftwareManager, SettingsController):
             self.system_entries = entries
         return entries
 
-    def _applications(self):
+    def _applications(self, online=False):
         with self.lock:
             scopes = (False, True) if not is_root() else (True,)
-            apps = [BinApplication(key, entry, system, self.i18n)
-                    for system in scopes for key, entry in self._read(system).items()]
+            data, warning = backend.refresh(online)
+            self.system_entries = data.get('bins', self.system_entries)
+            warning = warning or data.get('errors', {}).get('bin')
+            if warning:
+                self.registry_errors[True] = warning
+            else:
+                self.registry_errors.pop(True, None)
+            apps = []
+            for system in scopes:
+                entries = self.system_entries if system else self._read(False)
+                for key, entry in entries.items():
+                    app = BinApplication(key, entry, system, self.i18n)
+                    if system:
+                        update_key = 'bin:' + key
+                        version = data.get('updates', {}).get(update_key)
+                        if version and version != app.version and not app.pinned:
+                            app.update, app.latest_version = True, version
+                        if warning or update_key in data.get('stale', ()):
+                            app.update_error = warning or self.i18n['bin.check_failed']
+                            app.description += ' · ' + self.i18n['bin.check_failed']
+                    apps.append(app)
             if apps:
                 desktops = DesktopCatalogue()
                 profiles = self.launcher.saved_profiles()
@@ -117,23 +138,51 @@ class BinManager(SoftwareManager, SettingsController):
                     self.launcher.populate(app, desktops, profiles, managed_path=app.path)
             return apps
 
-    def _check_update(self, pkg):
-        if pkg.pinned:
+    def _check_update(self, pkg, cached, online):
+        if pkg.pinned or pkg.system:
+            return
+        stamp = hashlib.sha256(json.dumps(pkg.entry, sort_keys=True).encode()).hexdigest()
+        record = cached.get(pkg.id, {})
+        if not isinstance(record, dict):
+            record = {}
+        if record.get('entry') == stamp:
+            prior = record.get('update')
+            if prior:
+                pkg.update = True
+                pkg.latest_version = prior
+            if not online or 0 <= time.time() - record['checked'] < 60:
+                return record
+        if not online:
             return
         try:
             with self._command(pkg.entry) as command:
                 update = command.check()
-            if update:
-                pkg.update = True
-                pkg.latest_version = update.version
+            pkg.update = bool(update)
+            pkg.latest_version = update.version if update else pkg.version
+            return {'entry': stamp, 'checked': time.time(), 'update': update.version if update else None}
         except FAILURES as error:
             pkg.update_error = str(error)
             pkg.description += f" · {self.i18n['bin.check_failed']}"
             self._warn(f'{pkg.name} ({pkg.scope}): {error}')
+            return record if record.get('entry') == stamp else None
 
-    def _scan(self, apps):
-        with ThreadPoolExecutor(max_workers=4) as pool:
-            list(pool.map(self._check_update, apps))
+    def _scan(self, apps, online=True):
+        with self.check_lock:
+            try:
+                cached = json.loads(self.check_cache.read_text())
+                if not isinstance(cached, dict):
+                    cached = {}
+            except (OSError, ValueError):
+                cached = {}
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                records = list(pool.map(lambda app: self._check_update(app, cached, online), apps))
+            current = {app.id: row for app, row in zip(apps, records) if row}
+            if current != cached:
+                try:
+                    self.check_cache.parent.mkdir(parents=True, exist_ok=True)
+                    write_json(self.check_cache, current)
+                except OSError as error:
+                    self._warn(error)
         with self.lock:
             self.update_errors = {pkg.id: (pkg.name, pkg.description, pkg.update_error)
                                   for pkg in apps if pkg.update_error}
@@ -142,9 +191,8 @@ class BinManager(SoftwareManager, SettingsController):
     def read_installed(self, disk_loader, limit, only_apps, pkg_types, internet_available):
         if pkg_types is not None and BinApplication not in pkg_types:
             return SearchResult.empty()
-        apps = self._applications()
-        if internet_available:
-            self._scan(apps)
+        apps = self._applications(internet_available)
+        self._scan(apps, internet_available)
         if limit > 0:
             apps = apps[:limit]
         return SearchResult(installed=apps, new=[], total=len(apps))
@@ -161,7 +209,7 @@ class BinManager(SoftwareManager, SettingsController):
         if not internet_available:
             return []
         return [PackageUpdate(pkg.id, pkg.latest_version, pkg.get_type(), pkg.name)
-                for pkg in self._scan(self._applications()) if pkg.update]
+                for pkg in self._scan(self._applications(True)) if pkg.update]
 
     def list_warnings(self, internet_available):
         with self.lock:
@@ -195,39 +243,17 @@ class BinManager(SoftwareManager, SettingsController):
         return TransactionResult.fail()
 
     def gen_custom_actions(self):
-        for name, online in (('install_url', True), ('read_system', False)):
-            key = f'bin.action.{name}'
-            yield CustomSoftwareAction(key, key, ICON, name, requires_root=False,
-                                       requires_confirmation=False, requires_internet=online)
+        key = 'bin.action.install_url'
+        yield CustomSoftwareAction(key, key, ICON, 'install_url', requires_root=False,
+                                   requires_confirmation=False, requires_internet=True)
 
     def _system_call(self, method, *args, watcher=None, password=None):
-        try:
-            return method(*args, password=password)
-        except SystemAccessRequired as error:
-            if password is not None or watcher is None or not shutil.which('sudo'):
-                raise BinError(self.i18n['bin.system.locked'] + f' {error}') from error
-            valid, password = watcher.request_root_password()
-            if not valid:
-                raise Cancelled() from error
-            return method(*args, password=password)
+        return method(*args, password=password)
 
     def _error(self, watcher, error):
         self._warn(error)
         watcher.print(str(error))
         watcher.show_message(self.i18n['error'].capitalize(), escape(str(error)), MessageType.ERROR)
-
-    def read_system(self, root_password, watcher):
-        try:
-            entries = self._system_call(self.registries[True].read, watcher=watcher, password=root_password)
-            with self.lock:
-                self.system_entries = entries['bins']
-                self.registry_errors.pop(True, None)
-            return True
-        except Cancelled:
-            return False
-        except FAILURES as error:
-            self._error(watcher, error)
-            return False
 
     def _ask(self, watcher, components, body=None):
         if not watcher.request_confirmation(title=self.i18n['bin.title'], body=body,

@@ -1,0 +1,6 @@
+[Unit]
+Description=Check Dylath-Leen system packages
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/busctl call ru.konkere.DylathLeen1 /ru/konkere/DylathLeen1 ru.konkere.DylathLeen1 Refresh b true
